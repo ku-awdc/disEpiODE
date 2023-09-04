@@ -1,0 +1,37 @@
+
+
+#TODO:
+test_that("0 test", {
+
+})
+
+test_that("conservation of area", {
+  world_scale <- 17
+  world <- create_landscape(scale = world_scale)
+  world_landscape <- world$landscape
+
+  world_area <- st_area(world_landscape)
+
+  # this is an assumption of a fully square landscape
+  # stopifnot(isTRUE(all.equal(world_scale**2, world_area)))
+  expect_equal(world_scale**2, world_area)
+
+  for (n in 1:100) {
+    grid <- create_grid(n, world_landscape, landscape_scale = world_scale)
+
+    grid_area <- st_area(st_union(grid))
+    # stopifnot(isTRUE(all.equal(grid_area, world_area)))
+    expect_equal(grid_area, world_area)
+  }
+
+
+  # DEBUG
+  # ggplot() +
+  #   geom_sf(data = world_landscape, fill = NA) +
+  #
+  #   geom_sf(data = grid, fill = NA, linetype = "dashed") +
+  #
+  #   theme_blank_background()
+
+
+})

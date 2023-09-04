@@ -5,3 +5,13 @@
 #' @importFrom magrittr %>%
 ## usethis namespace: end
 NULL
+
+#' Packages that will be assumed to be ubiquitious
+#'
+#' @name imports
+#'
+#' @import sf
+#' @import tibble
+#' @import dplyr
+#' @import tidyr
+NULL

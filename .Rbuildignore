@@ -1,3 +1,5 @@
 ^disEpiODE\.Rproj$
 ^\.Rproj\.user$
 ^LICENSE\.md$
+^local$
+^notebooks$
