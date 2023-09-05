@@ -14,7 +14,9 @@ Imports:
     tibble,
     dplyr,
     tidyr,
-    sf
+    sf,
+    deSolve,
+    purrr
 Suggests: 
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
