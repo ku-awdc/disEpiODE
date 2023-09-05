@@ -31,14 +31,16 @@ create_si_model <- function(grid, beta_mat, y_init) {
     carry = grid$carry
   )
 
-  model_func <- function(y, times, parameters) {
+  model_func <- function(times, y, parameters) {
+    # browser()
     N <- parameters$N
     beta_mat <- parameters$beta_mat
 
     S <- y[1:N]
     I <- y[(N + 1):(2 * N)]
 
-    infections <- beta_mat * S * I
+    # infections <- beta_mat * S * I
+    infections <- (I %*% beta_mat) * S
     dS <- -infections
     dI <- +infections
 
@@ -50,7 +52,7 @@ create_si_model <- function(grid, beta_mat, y_init) {
          prevalence_population = prevalence_population)
   }
 
-  find_target_prevalence <- function(y, times, parameters) {
+  find_target_prevalence <- function(times, y, parameters) {
     N <- parameters$N
     I <- y[(N + 1):(2 * N)]
 
@@ -58,19 +60,19 @@ create_si_model <- function(grid, beta_mat, y_init) {
     # could also be divided by sum(y)
     prevalence_population <- sum(I) / sum(carry)
 
-    c(prevalence_population - 0.5, sum(I))
+    c(prevalence_population - 0.5, zapsmall(sum(I)))
   }
-
+  # browser()
   deSolve::ode(
     verbose = TRUE,
     y = y_init,
     parms = parameter_list,
     times = c(0, Inf),
+    # times = seq.default(0, 10, length.out = 250),
     rootfunc = find_target_prevalence,
     func = model_func,
-    ynames = FALSE,
+    ynames = FALSE
   )
-
 }
 
 world_scale <- 17
@@ -84,15 +86,16 @@ world_area <- st_area(world_landscape)
 n <- 30
 grid <- create_grid(n, world_landscape, landscape_scale = world_scale)
 
-population_total <- 1.2 * world_area
-grid$carry <- population_total / nrow(grid)
+population_total <- world_area
+
+grid$carry <- st_area(grid$geometry)
 
 y_init <- c(S = grid$carry,
             I = numeric(length(grid$carry)))
 # find closest to center
 closest_to_middle <-
   st_nearest_feature(world_landscape %>% st_centroid(),
-                     grid)
+                     grid$geometry %>% st_centroid())
 ggplot() +
   geom_sf(data = grid, fill = NA) +
 
@@ -101,46 +104,42 @@ ggplot() +
   theme_blank_background()
 
 #' Add infected animal
-y_init[nrow(grid) + closest_to_middle] <- 1
+y_init[nrow(grid) + closest_to_middle] <- 0.5 * grid$carry[closest_to_middle]
+y_init[closest_to_middle] <- y_init[nrow(grid) + closest_to_middle]
+
+y_init
+
 # ignoring
 y_init %>%
+  zapsmall() %>%
   table()
 
-dist_grid <- st_distance(grid)
-
-dist_grid %>%
-  str()
-
-dist_score <- dist_grid
-diag(dist_score) <- Inf
-
-
-
-nrow(grid)
-grid
 beta_baseline <- 0.05
-beta_mat <- beta_baseline * Matrix::diag(nrow = n, ncol = n)
-beta_mat %>% dim()
-
-grid$centroid <- st_centroid(grid)
-grid$id <- seq_len(nrow(grid))
-
-ggplot() +
-  geom_sf(data = grid, fill = NA) +
-
-  geom_sf_text(data = grid, aes(geometry = centroid, label = id)) +
-
-  geom_sf(data = grid[closest_to_middle,],
-          fill = "blue") +
-  theme_blank_background()
-
-
-grid
-
+dist_grid <- st_distance(grid$geometry %>% st_centroid())
+isSymmetric(dist_grid)
+diag(dist_grid) %>% table()
+beta_mat <- beta_baseline * exp(-dist_grid)
+# VALIDATION
 # Matrix::image(Matrix::Matrix(beta_mat))
 
+# grid$centroid <- st_centroid(grid)
+# grid$id <- seq_len(nrow(grid))
+
+# ggplot() +
+#   geom_sf(data = grid, fill = NA) +
+#
+#   geom_sf_text(data = grid, aes(geometry = centroid, label = id)) +
+#
+#   geom_sf(data = grid[closest_to_middle,],
+#           fill = "blue") +
+#   theme_blank_background()
+
+
+grid
+
+dist_grid
 # beta_mat <- beta_mat + beta_baseline * (1 / dist_score)
-beta_mat <- beta_mat + beta_baseline * exp(-dist_score)
+# beta_mat <- beta_mat + beta_baseline * exp(-dist_score)
 
 #' What about the order of the distance matrix?
 # Matrix::Matrix(dist_grid) %>% Matrix::image()
@@ -152,11 +151,44 @@ beta_mat <- beta_mat + beta_baseline * exp(-dist_score)
 #                         order(dist_grid[closest_to_middle,])]
 # Matrix::Matrix(dist_grid3) %>% Matrix::image()
 
+
+y_init[(1:nrow(grid))] -> S
+y_init[(nrow(grid) + 1):(2 * nrow(grid))] -> I
+
+sum(I) / sum(S+I)
+sum(I) / sum(grid$carry)
+
+y_init[(1:nrow(grid))] %>% zapsmall() %>% table()
+y_init[(nrow(grid) + 1):(2 * nrow(grid))] %>% table()
+
 create_si_model(grid, beta_mat, y_init) ->
   model_output
-beta_mat
 
+
+# model_output[2, (1:nrow(grid))] -> S
+#
+# sum(I) / sum(S+I)
+
+model_output %>% str()
+
+model_output[2, (nrow(grid) + 2):(2 * nrow(grid) + 1)] -> I
+# I %>% names() %>% head()
+# I %>% names() %>% tail()
+(I / grid$carry) -> prevalence_grid
+
+ggplot() +
+  geom_sf(data = grid %>% mutate(prev = prevalence_grid),
+          aes(fill = prev)) +
+
+  # geom_sf(data = grid[closest_to_middle,],
+  #         fill = "blue") +
+
+  scale_fill_viridis_c() +
+  theme_blank_background()
+
+density()
 
 tau_output <-
-  model_output[, c(1, (2*nrow(grid) + 2):ncol(model_output))]
+  model_output[, c(1, (2 * nrow(grid) + 2):ncol(model_output))]
 tau_output
+
