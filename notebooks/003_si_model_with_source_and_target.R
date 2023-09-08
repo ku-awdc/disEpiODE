@@ -18,6 +18,8 @@ devtools::load_all()
 #'
 #' @param grid Represents a grid of a landscape
 #' @param beta_mat Infection rate matrix
+#' @param y_init c(S, I) compartments for t = 0
+#' @param target_overlap
 #'
 #' @return
 #' @export
@@ -53,14 +55,10 @@ create_si_model <- function(grid, beta_mat, y_init, target_overlap) {
 
     # reporting
     carry <- parameters$carry
-    prevalence_population <- sum(I)  / sum(carry)
-    # prevalence_target <- sum(
-    #   I[target_overlap$id] * target_overlap$weight /
-    #     carry[target_overlap$id] * target_overlap$weight
-    # )
-    prevalence_target <- sum(
-      I[target_overlap$id_overlap] / carry[target_overlap$id_overlap]
-    )
+    prevalence_population <- sum(I)  / sum(carry) # alternative: / sum(S + I)
+    prevalence_target <- sum((I[target_overlap$id_overlap] /
+                                carry[target_overlap$id_overlap]) * target_overlap$weight) /
+      sum(target_overlap$weight)
 
     list(c(dS, dI),
          prevalence_target = prevalence_target,
@@ -100,13 +98,22 @@ create_si_model <- function(grid, beta_mat, y_init, target_overlap) {
 
     carry <- parameters$carry
 
-    # prevalence_target <- sum(
-    #   I[target_overlap$id] * target_overlap$weight /
-    #     carry[target_overlap$id] * target_overlap$weight
-    # )
-    prevalence_target <- sum(
-      I[target_overlap$id_overlap] / carry[target_overlap$id_overlap]
+    prevalence_target <- mean(
+      I[target_overlap$id_overlap] * target_overlap$weight /
+        (carry[target_overlap$id_overlap] * target_overlap$weight)
     )
+    # mean(I / carry)
+    # sum(y_i×w_i) / sum(w_i) #weighted arithmetic mean
+    # prevalence_target <- sum(
+    #   I[target_overlap$id_overlap] / carry[target_overlap$id_overlap]
+    # )
+    # APPROACH: MATT
+    prevalence_target <- sum((I[target_overlap$id_overlap] /
+                                carry[target_overlap$id_overlap]) * target_overlap$weight) /
+      sum(target_overlap$weight)
+    #
+    # APPROACH:
+    # prevalence_target <- sum(I[target_overlap$id_overlap] * target_overlap$weight) / sum(target_overlap$weight)
 
     c(prevalence_target - 0.5,
       terminate_extinction(times, y, parameters))
@@ -125,14 +132,13 @@ create_si_model <- function(grid, beta_mat, y_init, target_overlap) {
                 rootfunc = find_target_prevalence,
                 times = c(0, Inf))
   #TODO: check if tau exists
-  tau <- tau_model_output[2,1]
-
-  #
+  tau <- tau_model_output[2, 1]
 
   #' this follows the population from 0 until
   #' tau (time when prevalence(target) = 50%)
   model_output <-
     rlang::exec(deSolve::ode, !!!ode_parameters,
+                # Matt: 2*tau instead for a window
                 times = seq.default(0, tau, length.out = 250),
                 rootfunc = terminate_extinction)
 
@@ -162,9 +168,10 @@ ggplot() +
 
 world_area <- st_area(world_landscape)
 
-# n <- 100
+# n <- 15
 # n <- 50
-n <- 30
+# n <- 75
+n <- 100
 grid <- create_grid(n, world_landscape, landscape_scale = world_scale)
 grid <- grid %>% rowid_to_column("id")
 population_total <- world_area
@@ -194,7 +201,6 @@ source_target_overlap
 ggplot() +
   geom_sf(data = source_target_overlap, fill = NA) +
   theme_blank_background()
-#'
 #'
 #'
 
@@ -280,12 +286,14 @@ dist_grid
 create_si_model(grid, beta_mat, y_init, target_overlap) ->
   model_output
 
-model_output$tau_model_output
+# model_output$tau_model_output %>% str()
 model_output$tau_model_output[2,1] # tau
+tau <-
+  model_output$tau_model_output[2,1] # tau
+tau
+# model_output$model_output %>% str()
 
-model_output$model_output
-
-#' Extract population and target prevalence throughout the trajectory:
+# Extract population and target prevalence throughout the trajectory:
 model_output$model_output[,c(1, (2*nrow(grid) + 2):ncol(model_output$model_output)),
                           drop = FALSE] ->
   prevalence_throughout
@@ -305,13 +313,23 @@ prevalence_throughout %>%
   theme(legend.position = "bottom") +
   labs(caption = "{n}")
 
+
 I_grid <-
   model_output$tau_model_output[2, (nrow(grid) + 2):(2 * nrow(grid) + 1)] %>%
   # names()
   identity()
 prevalence_grid <- (I_grid / grid$carry)
+
+
+target_overlap$id_overlap
+I_grid
+I_grid[target_overlap$id_overlap]
+I_grid[target_overlap$id_overlap] %>% sum()
+grid$carry[target_overlap$id_overlap] %>% sum()
+
 ggplot() +
   geom_sf(data = grid %>% mutate(prev = prevalence_grid),
+            # filter(id %in% target_overlap$id_overlap),
           aes(fill = prev)) +
 
   geom_sf(data = source_target,
@@ -321,29 +339,6 @@ ggplot() +
   scale_fill_viridis_c() +
   theme(legend.position = "bottom") +
   theme_blank_background()
-
-# # model_output[2, (1:nrow(grid))] -> S
-# #
-# # sum(I) / sum(S+I)
-#
-# model_output %>% str()
-#
-# model_output[2, (nrow(grid) + 2):(2 * nrow(grid) + 1)] -> I
-# # I %>% names() %>% head()
-# # I %>% names() %>% tail()
-# (I / grid$carry) -> prevalence_grid
-#
-# ggplot() +
-#   geom_sf(data = grid %>% mutate(prev = prevalence_grid),
-#           aes(fill = prev)) +
-#
-#   # geom_sf(data = grid[closest_to_middle,],
-#   #         fill = "blue") +
-#
-#   scale_fill_viridis_c() +
-#   theme_blank_background()
-#
-# tau_output <-
-#   model_output[, c(1, (2 * nrow(grid) + 2):ncol(model_output))]
-# tau_output
-
+#'
+#'
+#'
