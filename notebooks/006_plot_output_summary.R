@@ -37,11 +37,11 @@ ggplot(output_summary) +
   labs(caption = glue_data(output_summary,
                            "n_max = {max(n)}")) +
   theme(legend.position = "top") +
-  facet_wrap(~factor(beta_baseline), ncol = 1,
-             labeller = . %>% label_both(sep= " = "),
-
-             scales = "free_y"
-             ) +
+  # facet_wrap(~factor(beta_baseline), ncol = 1,
+  #            labeller = . %>% label_both(sep= " = "),
+  #
+  #            scales = "free_y"
+  #            ) +
   NULL
 #'
 #'
