@@ -36,3 +36,28 @@ ggplot(output_summary) +
                            "Last tau = tau_{last(n)} = {zapsmall(last(tau))}")) +
   theme(legend.position = "top") +
   NULL
+#'
+#'
+
+ggplot(output_summary) +
+  aes(n, prevalence_population) +
+  geom_step() +
+
+  geom_hline(aes(yintercept = 0.5,
+                 color = "target prevalence"),
+                 linetype = "dotted") +
+
+  lims(y = c(0.5, 1)) +
+
+  geom_hline(
+    aes(yintercept = last(prevalence_population),
+        color = "last population prevalence"),
+    linetype = "dashed"
+  ) +
+  labs(
+    y = "Population prevalence",
+    caption = "t = tau, n² := total cells, target prevalence = 50%") +
+  theme_blank_background() +
+
+  theme(legend.position = "top") +
+  NULL

@@ -8,6 +8,15 @@ library(tidyverse)
 # library(glue)
 # library(disEpiODE)
 
+# Clean the `output` directory, if it is there.
+if (fs::dir_exists("output/")) {
+  fs::dir_delete("output/")
+  fs::dir_create("output/")
+} else {
+  fs::dir_create("output/")
+}
+
+
 #'
 #'
 
@@ -33,25 +42,21 @@ output_summary <-
     purrr::transpose(params1),
     \(params) {
       n <- params$n
-      env <- new.env()
       rmarkdown::render(
         input = "notebooks/004_run_model_with_full_report.R",
         output_file =
           glue::glue("004_n_{n}"),
-        # knit_root_dir = "",
         output_dir = "output/",
         params = params,
-        envir = env,
         intermediates_dir = tempdir(),
-        # clean = FALSE,
         quiet = FALSE
       )
-      env$report_row
+      report_row
     })
 #'
 #'
 output_summary %>%
   bind_rows() %>%
-  unnest_wider(params) %>%
+  print(n = Inf, width = Inf) %>%
   write_excel_csv("output/output_summary.csv")
 
