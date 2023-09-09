@@ -32,6 +32,8 @@ params1 <- tidyr::expand_grid(
   # n = c(10,22)
 )
 
+#TODO: shuffle params1
+
 # library(future)
 # # plan(multicore(workers = 4))
 # plan(future::sequential())
