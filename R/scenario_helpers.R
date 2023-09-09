@@ -22,7 +22,11 @@ get_buffer_source_target <-
     # buffer_offset_percent <- 0.1
     stopifnot("must be within (0,1)" =
                 0 <= buffer_offset_percent &
-                buffer_offset_percent <= 1)
+                buffer_offset_percent <= 1,
+              length(landscape_width) == 1,
+              length(landscape_height) == 1,
+              length(buffer_radius) == 1,
+              length(buffer_offset_percent) == 1)
 
     source_coordinate <-
       st_point({c(landscape_width, landscape_height) * buffer_offset_percent} %>% {. + pmax(0, buffer_radius - .)})

@@ -23,7 +23,8 @@ create_si_model <- function(grid, beta_mat, y_init, target_overlap) {
   parameter_list <- list(
     beta_mat = beta_mat,
     N = nrow(grid),
-    carry = grid$carry
+    carry = grid$carry,
+    target_overlap = target_overlap
   )
 
   # common parameters
@@ -35,7 +36,8 @@ create_si_model <- function(grid, beta_mat, y_init, target_overlap) {
     ynames = FALSE
   )
   tau_model_output <-
-    rlang::exec(deSolve::ode, !!!ode_parameters,
+    rlang::exec(deSolve::ode,
+                !!!ode_parameters,
                 rootfunc = find_target_prevalence,
                 times = c(0, Inf))
   #TODO: check if tau exists
@@ -64,6 +66,7 @@ create_si_model <- function(grid, beta_mat, y_init, target_overlap) {
 model_func <- function(times, y, parameters) {
   N <- parameters$N
   beta_mat <- parameters$beta_mat
+  target_overlap <- parameters$target_overlap
 
   S <- y[1:N]
   I <- y[(N + 1):(2 * N)]
@@ -121,6 +124,7 @@ find_population_prevalence <- function(times, y, parameters) {
 #' when the target-buffer has a prevalence of 50%.
 find_target_prevalence <- function(times, y, parameters) {
   N <- parameters$N
+  target_overlap <- parameters$target_overlap
   I <- y[(N + 1):(2 * N)]
 
   carry <- parameters$carry
