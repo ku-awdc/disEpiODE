@@ -139,9 +139,9 @@ source_overlap <- all_buffers_overlap_map$source
 target_overlap <- all_buffers_overlap_map$target
 middle_overlap <- all_buffers_overlap_map$middle
 
-# source_overlap
-# target_overlap
-# middle_overlap
+source_overlap
+target_overlap
+middle_overlap
 
 #' Add infected animal
 

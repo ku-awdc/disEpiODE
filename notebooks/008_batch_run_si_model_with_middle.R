@@ -26,7 +26,8 @@ params1 <- tidyr::expand_grid(
   beta_baseline = c(0.05, 0.005),
   buffer_radius = 3.5,
   # LOG: limit on laptop is 112
-  n = seq_len(50),
+  n = seq_len(100),
+  # n = seq_len(50),
   # n = seq_len(4),
   # n = seq_len(200)
   # n = c(10, 22, 3)
@@ -49,7 +50,7 @@ output_summary <-
       rmarkdown::render(
         input = "notebooks/007_add_middle_observation_buffer.R",
         output_file =
-          glue::glue("007_n_{n}_beta_baseline_{beta_baseline}"),
+          glue::glue("007_n_{n}_beta_baseline_{beta_baseline}.html"),
         output_dir = "output/",
         params = params,
         intermediates_dir = tempdir(),
