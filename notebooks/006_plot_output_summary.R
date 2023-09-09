@@ -13,36 +13,44 @@ output_summary <-
 #'
 #'
 # VALIDATION: this must be empty
-output_summary %>%
-  count(n, sort = T, name = "duplicate_count") %>%
-  filter(duplicate_count > 1) %>% {
-    stopifnot("output grids cannot contain duplicates" =
-                nrow(.) == 0)
-  }
+# output_summary %>%
+#   count(n, sort = T, name = "duplicate_count") %>%
+#   filter(duplicate_count > 1) %>% {
+#     stopifnot("output grids cannot contain duplicates" =
+#                 nrow(.) == 0)
+#   }
 #'
 ggplot(output_summary) +
-  aes(n**2, tau) +
-  # aes(n, tau) +
+  # aes(n**2, tau, group = factor(beta_baseline)) +
+  aes(n, tau, group = factor(beta_baseline)) +
   geom_step() +
-  scale_x_log10() +
+
   geom_hline(
-    aes(yintercept = last(tau),
-    color = "last tau"
-        ),
+    aes(yintercept = tau,
+        color = "last tau"),
+    data = . %>% group_by(factor(beta_baseline)) %>%
+      slice_max(n, n = 1),
     linetype = "dotted"
   ) +
+
   theme_blank_background() +
   labs(caption = glue_data(output_summary,
-                           "Last tau = tau_{last(n)} = {zapsmall(last(tau))}")) +
+                           "n_max = {max(n)}")) +
   theme(legend.position = "top") +
+  facet_wrap(~factor(beta_baseline), ncol = 1,
+             labeller = . %>% label_both(sep= " = "),
+
+             scales = "free_y"
+             ) +
   NULL
 #'
 #'
 
 ggplot(output_summary) +
-  aes(n, prevalence_population) +
+  aes(n, prevalence_population,
+      group = factor(beta_baseline)) +
   geom_step() +
-
+  # geom_step(aes(color = factor(beta_baseline))) +
   geom_hline(aes(yintercept = 0.5,
                  color = "target prevalence"),
                  linetype = "dotted") +

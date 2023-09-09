@@ -22,7 +22,8 @@ if (fs::dir_exists("output/")) {
 
 params1 <- tidyr::expand_grid(
   world_scale = 29,
-  beta_baseline = 0.05,
+  # beta_baseline = 0.05,
+  beta_baseline = c(0.05, 0.005),
   # LOG: limit on laptop is 112
   n = seq_len(50),
   # n = seq_len(4),
@@ -45,7 +46,7 @@ output_summary <-
       rmarkdown::render(
         input = "notebooks/004_run_model_with_full_report.R",
         output_file =
-          glue::glue("004_n_{n}"),
+          glue::glue("004_n_{n}_beta_baseline_{beta_baseline}"),
         output_dir = "output/",
         params = params,
         intermediates_dir = tempdir(),
