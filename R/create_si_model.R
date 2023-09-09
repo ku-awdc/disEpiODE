@@ -11,20 +11,22 @@
 #' @export
 #'
 #' @examples
-create_si_model <- function(grid, beta_mat, y_init, target_overlap) {
+create_si_model <- function(grid, beta_mat, y_init, target_overlap, middle_overlap) {
 
   stopifnot(
     all(c("id", "geometry", "carry") %in% names(grid)),
     all(dim(beta_mat) == c(length(grid$geometry), length(grid$geometry))),
     length(y_init) == 2 * length(grid$geometry),
-    all(c("id_overlap", "weight") %in% names(target_overlap))
+    all(c("id_overlap", "weight") %in% names(target_overlap)),
+    all(c("id_overlap", "weight") %in% names(middle_overlap))
   )
 
   parameter_list <- list(
     beta_mat = beta_mat,
     N = nrow(grid),
     carry = grid$carry,
-    target_overlap = target_overlap
+    target_overlap = target_overlap,
+    middle_overlap = middle_overlap
   )
 
   # common parameters
@@ -67,6 +69,7 @@ model_func <- function(times, y, parameters) {
   N <- parameters$N
   beta_mat <- parameters$beta_mat
   target_overlap <- parameters$target_overlap
+  middle_overlap <- parameters$middle_overlap
 
   S <- y[1:N]
   I <- y[(N + 1):(2 * N)]
@@ -83,9 +86,13 @@ model_func <- function(times, y, parameters) {
   prevalence_target <- sum((I[target_overlap$id_overlap] /
                               carry[target_overlap$id_overlap]) * target_overlap$weight) /
     sum(target_overlap$weight)
+  prevalence_middle <- sum((I[middle_overlap$id_overlap] /
+                              carry[middle_overlap$id_overlap]) * middle_overlap$weight) /
+    sum(middle_overlap$weight)
 
   list(c(dS, dI),
        prevalence_target = prevalence_target,
+       prevalence_middle = prevalence_middle,
        prevalence_population = prevalence_population)
 }
 
