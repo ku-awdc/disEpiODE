@@ -31,6 +31,14 @@ get_buffer_source_target <-
     source_coordinate <-
       st_point({c(landscape_width, landscape_height) * buffer_offset_percent} %>% {. + pmax(0, buffer_radius - .)})
     target_coordinate <- st_point(c(landscape_width, landscape_height)) - source_coordinate
+    # # Calculate the offset
+    # offset <- c(landscape_width, landscape_height) * buffer_offset_percent
+    # adjusted_offset <- offset + pmax(0, buffer_radius - offset)
+    #
+    # # Define the source and target coordinates
+    # source_coordinate <- st_point(adjusted_offset)
+    # target_coordinate <- st_point(c(landscape_width, landscape_height) - adjusted_offset)
+
     source_target <- list(
       source = source_coordinate,
       target = target_coordinate
