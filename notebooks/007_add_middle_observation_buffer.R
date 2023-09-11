@@ -166,7 +166,7 @@ stopifnot(
 
 dist_grid <- st_distance(grid$geometry %>% st_centroid())
 isSymmetric(dist_grid)
-diag(dist_grid) %>% table()
+# diag(dist_grid) %>% table()
 beta_mat <- beta_baseline * exp(-dist_grid)
 #'
 #'
