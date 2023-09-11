@@ -3,12 +3,21 @@
 #' @param n Number of splits in
 #' @param landscape Landscape as `sf` object
 #' @param landscape_scale Width / height of the landscape
+#' @param offset Aligned with initial cell placed at lower left corner
+#'
+#' @note In `offset`, `"bottom"` means aligned to bottom;
+#' Thus bottom middle.
+#'
+#' ⬛⬛⬛
+#' ⚫⚫⬛
+#' ⚫⚫⬛
 #'
 #' @return
 #' @export
 #'
 #' @examples
-create_grid <- function(n, landscape, landscape_scale) {
+create_grid <- function(n, landscape, landscape_scale,
+                        offset = c("corner", "middle", "bottom", "left")) {
   stopifnot(
     length(n) == 1,
     length(landscape_scale) == 1,
@@ -17,9 +26,30 @@ create_grid <- function(n, landscape, landscape_scale) {
     "both cellsize in either direction must be provided" =
       length(n) == length(landscape_scale)
   )
+  cellsize <- landscape_scale / n
+  offset <- match.arg(offset, choices = offset, several.ok = FALSE)
 
-  grid <- st_make_grid(landscape, cellsize = landscape_scale / n)
+  offset <- st_bbox(landscape)[c("xmin", "ymin")] -
+    switch(offset,
+           corner = {
+             c(0,0)
+           },
+           middle = {
+             c(cellsize, cellsize) / 2
+           },
+           bottom = {
+             c(cellsize/2, 0)
+           },
+           left = {
+             c(0, cellsize/2)
+           }
+    )
+
+  grid <- st_make_grid(landscape, cellsize = cellsize,
+                       offset = offset)
   grid <- st_sf(grid)
+
+  grid <- st_intersection(grid, landscape)
 
   matched_area <- isTRUE(all.equal(
     st_area(st_union(grid)),
@@ -34,6 +64,10 @@ create_grid <- function(n, landscape, landscape_scale) {
                       .predicate = st_within)
   }
 
+  # Amend grid with properties useful elsewhere
+  st_geometry(grid) <- "geometry"
+  grid$area <- st_area(grid$geometry)
+
   # DEBUG PLOT
   # ggplot() +
   #   geom_sf(data = grid, fill = NA) +
@@ -46,6 +80,5 @@ create_grid <- function(n, landscape, landscape_scale) {
         st_area(st_union(grid)),
         st_area(landscape))))
 
-  st_geometry(grid) <- "geometry"
   grid
 }

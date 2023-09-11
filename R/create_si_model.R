@@ -14,7 +14,7 @@
 create_si_model <- function(grid, beta_mat, y_init, target_overlap, middle_overlap, verbose = TRUE) {
 
   stopifnot(
-    all(c("id", "geometry", "carry") %in% names(grid)),
+    all(c("id", "geometry", "carry", "area") %in% names(grid)),
     all(dim(beta_mat) == c(length(grid$geometry), length(grid$geometry))),
     length(y_init) == 2 * length(grid$geometry),
     all(c("id_overlap", "weight") %in% names(target_overlap)),
@@ -25,6 +25,7 @@ create_si_model <- function(grid, beta_mat, y_init, target_overlap, middle_overl
     beta_mat = beta_mat,
     N = nrow(grid),
     carry = grid$carry,
+    area = grid$area,
     target_overlap = target_overlap,
     middle_overlap = middle_overlap
   )
@@ -70,12 +71,15 @@ model_func <- function(times, y, parameters) {
   beta_mat <- parameters$beta_mat
   target_overlap <- parameters$target_overlap
   middle_overlap <- parameters$middle_overlap
+  area <- parameters$area
 
   S <- y[1:N]
   I <- y[(N + 1):(2 * N)]
 
   # infections <- beta_mat * S * I
   infections <- (I %*% beta_mat) * S
+  # doesn't converge to anything, but tau -> 0 for n->infinity
+  # infections <- (I %*% beta_mat) * S / area
   dS <- -infections
   dI <- +infections
 
