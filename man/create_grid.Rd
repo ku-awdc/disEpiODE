@@ -4,7 +4,12 @@
 \alias{create_grid}
 \title{Title}
 \usage{
-create_grid(n, landscape, landscape_scale)
+create_grid(
+  n,
+  landscape,
+  landscape_scale,
+  offset = c("corner", "middle", "bottom", "left")
+)
 }
 \arguments{
 \item{n}{Number of splits in}
@@ -12,7 +17,17 @@ create_grid(n, landscape, landscape_scale)
 \item{landscape}{Landscape as \code{sf} object}
 
 \item{landscape_scale}{Width / height of the landscape}
+
+\item{offset}{Aligned with initial cell placed at lower left corner}
 }
 \description{
 Title
+}
+\note{
+In \code{offset}, \code{"bottom"} means aligned to bottom;
+Thus bottom middle.
+
+⬛⬛⬛
+⚫⚫⬛
+⚫⚫⬛
 }
