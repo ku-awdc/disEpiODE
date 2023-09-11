@@ -11,7 +11,7 @@
 #' @export
 #'
 #' @examples
-create_si_model <- function(grid, beta_mat, y_init, target_overlap, middle_overlap) {
+create_si_model <- function(grid, beta_mat, y_init, target_overlap, middle_overlap, verbose = TRUE) {
 
   stopifnot(
     all(c("id", "geometry", "carry") %in% names(grid)),
@@ -31,7 +31,7 @@ create_si_model <- function(grid, beta_mat, y_init, target_overlap, middle_overl
 
   # common parameters
   ode_parameters <- list(
-    verbose = TRUE,
+    verbose = verbose,
     y = y_init,
     parms = parameter_list,
     func = model_func,
