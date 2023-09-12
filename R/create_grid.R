@@ -28,7 +28,11 @@ create_grid <- function(n, landscape, landscape_scale,
     "both cellsize in either direction must be provided" =
       length(n) == length(landscape_scale)
   )
-  cellsize <- landscape_scale / n
+  cellsize <- if (square) {
+    landscape_scale / n
+  } else {
+    c((landscape_scale * 2) / (sqrt(3) * n))
+  }
   offset <- match.arg(offset, choices = offset, several.ok = FALSE)
 
   offset <- st_bbox(landscape)[c("xmin", "ymin")] -
@@ -48,10 +52,11 @@ create_grid <- function(n, landscape, landscape_scale,
     )
 
   grid <- st_make_grid(landscape, cellsize = cellsize,
-                       offset = offset, square = square)
+                       offset = offset, square = square,
+                       what = "polygons")
   grid <- st_sf(grid)
 
-  grid <- st_intersection(grid, landscape)
+  grid <- st_intersection(grid, landscape, dimensions = "polygon")
 
   matched_area <- isTRUE(all.equal(
     st_area(st_union(grid)),
