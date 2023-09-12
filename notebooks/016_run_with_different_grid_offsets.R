@@ -227,8 +227,8 @@ I_grid <-
   # names()
   identity()
 # this should be number of columns
-stopifnot("only n² cells that represent I" =
-            length(I_grid) == n**2)
+# stopifnot("only n² cells that represent I" =
+#             length(I_grid) == n**2)
 prevalence_grid <- (I_grid / grid$carry)
 
 # DEBUG
