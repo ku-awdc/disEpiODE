@@ -102,7 +102,8 @@ stopifnot(
 
 world_area <- st_area(world_landscape)
 
-grid <- create_grid(n, world_landscape,
+grid <- create_grid(n = n,
+                    landscape = world_landscape,
                     landscape_scale = world_scale,
                     offset = offset)
 
