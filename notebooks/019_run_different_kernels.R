@@ -22,6 +22,7 @@ knitr::opts_knit$set(verbose = TRUE)
 #' Default parameters if not being rendered
 #'
 if (!exists("params")) {
+  tag <- "000"
   params <- list(
     world_scale = 29,
     beta_baseline = 0.05,
@@ -181,6 +182,12 @@ dist_grid <- st_distance(st_centroid(grid$geometry))
 isSymmetric(dist_grid)
 beta_mat_exp <- beta_baseline * exp(-dist_grid)
 
+
+beta_mat_inverse <- beta_baseline / dist_grid
+diag(beta_mat_inverse) <- beta_baseline
+
+stopifnot(all(is.finite(beta_mat_inverse)))
+
 half_normal_kernel(0) # should be 1
 # dist_grid_half_normal <- dist_grid
 # diag(dist_grid_half_normal) <- 0
@@ -189,11 +196,12 @@ diag(beta_mat_half_normal) <- beta_baseline
 
 stopifnot(all(is.finite(beta_mat_half_normal)))
 
-dist_grid_sqrt <- dist_grid
-range(dist_grid_sqrt)
-diag(dist_grid_sqrt) <- 1
-beta_mat_sqrt <- beta_baseline / sqrt(dist_grid_sqrt)
+# dist_grid_sqrt <- dist_grid
+# range(dist_grid_sqrt)
+# diag(dist_grid_sqrt) <- 1
+beta_mat_sqrt <- beta_baseline / sqrt(dist_grid)
 # diag(beta_mat_sqrt) <- 1 # WRONG
+diag(beta_mat_sqrt) <- beta_baseline
 range(beta_mat_sqrt)
 
 # hist(beta_mat_sqrt)
@@ -218,123 +226,140 @@ stopifnot(all(is.finite(beta_mat_norm_half_normal)))
 # diag(beta_mat) <- diag(beta_mat) / grid_area[1]
 #'
 #'
-disEpiODE:::create_si_model(grid, beta_mat, y_init, target_overlap, middle_overlap) ->
-  model_output
-#'
-#'
-stopifnot(
-  all(!is.na(model_output$tau_model_output)),
-  all(!is.na(model_output$model_output))
+
+beta_mat_list <- list(
+  beta_mat_inverse = beta_mat_inverse,
+  beta_mat_exp = beta_mat_exp,
+  beta_mat_sqrt = beta_mat_sqrt,
+  beta_mat_half_normal = beta_mat_half_normal,
+  beta_mat_norm_half_normal = beta_mat_norm_half_normal
 )
 
-# model_output$tau_model_output %>% str()
-model_output$tau_model_output[2,1] # tau
-tau <-
-  model_output$tau_model_output[2,1] # tau
-tau
-# model_output$model_output %>% str()
+iwalk(
+  beta_mat_list, \(beta_mat, beta_mat_name) {
 
-# Extract population and target prevalence throughout the trajectory:
-model_output$model_output[,c(1, (2*nrow(grid) + 2):ncol(model_output$model_output)),
-                          drop = FALSE] ->
-  prevalence_throughout
-#'
-#'
-prevalence_throughout %>% head()
-#'
-#' Population prevalence throughout
-prevalence_throughout %>%
-  as_tibble() %>%
-  pivot_longer(starts_with("prevalence_"),
-               names_to = c(NA, "prevlance_name"),
-               names_sep = "_") %>%
-  ggplot() +
-  aes(time, value, group = prevlance_name) +
-  geom_line(aes(color = prevlance_name)) +
-  lims(y = c(0, 0.5)) +
-  theme_blank_background() +
-  theme(legend.position = "bottom") +
-  labs(caption = glue("{n}"))
-#'
-#'
-#'
-I_grid <-
-  model_output$tau_model_output[2, (nrow(grid) + 2):(2 * nrow(grid) + 1)] %>%
-  # names()
-  identity()
-# this should be number of columns
-# stopifnot("only n² cells that represent I" =
-#             length(I_grid) == n**2)
-prevalence_grid <- (I_grid / grid$carry)
+    #'
+    disEpiODE:::create_si_model(grid, beta_mat, y_init,
+                                target_overlap, middle_overlap) ->
+      model_output
+    #'
+    #'
+    stopifnot(
+      all(!is.na(model_output$tau_model_output)),
+      all(!is.na(model_output$model_output))
+    )
 
-# DEBUG
-# target_overlap$id_overlap
-# I_grid
-# I_grid[target_overlap$id_overlap]
-# I_grid[target_overlap$id_overlap] %>% sum()
-# grid$carry[target_overlap$id_overlap] %>% sum()
+    # model_output$tau_model_output %>% str()
+    model_output$tau_model_output[2,1] # tau
+    tau <-
+      model_output$tau_model_output[2,1] # tau
+    tau
+    # model_output$model_output %>% str()
 
-#+ figure.width=12
-p_prevalence_at_Tau <-
-  ggplot() +
-  geom_sf(data = grid %>%
-            mutate(prev = prevalence_grid),
-          # filter(id %in% target_overlap$id_overlap),
-          aes(fill = prev)) +
+    # Extract population and target prevalence throughout the trajectory:
+    model_output$model_output[,c(1, (2*nrow(grid) + 2):ncol(model_output$model_output)),
+                              drop = FALSE] ->
+      prevalence_throughout
+    #'
+    #'
+    prevalence_throughout %>% head()
+    #'
+    #' Population prevalence throughout
+    prevalence_throughout %>%
+      as_tibble() %>%
+      pivot_longer(starts_with("prevalence_"),
+                   names_to = c(NA, "prevalence_name"),
+                   names_sep = "_") %>%
+      ggplot() +
+      aes(time, value, group = prevalence_name) +
+      geom_line(aes(color = prevalence_name)) +
+      lims(y = c(0, 0.5)) +
+      theme_blank_background() +
+      theme(legend.position = "bottom") +
+      labs(caption = glue("{n}"))
+    #'
+    #'
+    #'
+    I_grid <-
+      model_output$tau_model_output[2, (nrow(grid) + 2):(2 * nrow(grid) + 1)] %>%
+      # names()
+      identity()
+    # this should be number of columns
+    # stopifnot("only n² cells that represent I" =
+    #             length(I_grid) == n**2)
+    prevalence_grid <- (I_grid / grid$carry)
 
-  geom_sf(data = all_buffers,
-          fill = NA,
-          aes(color = label, geometry = buffer_polygon)) +
+    # DEBUG
+    # target_overlap$id_overlap
+    # I_grid
+    # I_grid[target_overlap$id_overlap]
+    # I_grid[target_overlap$id_overlap] %>% sum()
+    # grid$carry[target_overlap$id_overlap] %>% sum()
 
-  scale_fill_viridis_c() +
-  theme(legend.position = "bottom") +
-  theme_blank_background()
-#'
-p_prevalence_at_Tau
-ggsave(
-  plot = p_prevalence_at_Tau,
-  filename =
-    glue("~/GitHub/disEpiODE/output/{tag}_grid_at_tau_plots/",
-         "prevalence_plot_{params_spec}.png") %>%
-    fs::path_expand(),
-  units = "cm",
-  width = 13,
-  height = 11.5,
-  scale = 1.4,
-  dpi = 300
-)
-#'
-#' ## Saving
-#'
-prevalence_at_tau <-
-  model_output$tau_model_output[
-    2, (1 + 1 + 2 * length(st_geometry(grid))):ncol(model_output$tau_model_output)
-    ,drop = FALSE]
-#'
-#'
-tibble(tau) %>%
-  bind_cols(as_tibble(params),
-            as_tibble(prevalence_at_tau)) ->
-  report_row
+    #+ figure.width=12
+    p_prevalence_at_Tau <-
+      ggplot() +
+      geom_sf(data = grid %>%
+                mutate(prev = prevalence_grid),
+              # filter(id %in% target_overlap$id_overlap),
+              aes(fill = prev)) +
 
-# add a row while running in batch mode, use `{tag}_output_summary.csv` if
-# available
-report_row_path <- glue("~/GitHub/disEpiODE/output/{tag}_summary.csv") %>%
-  fs::path_expand()
-report_row %>%
-  readr::write_excel_csv(
-    append = TRUE,
-    col_names = !file.exists(report_row_path),
-    report_row_path)
-#'
-#'
-# Save the `model_output` for this configuration
-readr::write_rds(
-  model_output,
-  glue(str_c(
-    "~/GitHub/disEpiODE/output/{tag}_model_output_",
-    params_spec,
-    ".rds"
-  )) %>%
-    fs::path_expand()
+      geom_sf(data = all_buffers,
+              fill = NA,
+              aes(color = label, geometry = buffer_polygon)) +
+
+      scale_fill_viridis_c() +
+      theme(legend.position = "bottom") +
+      theme_blank_background()
+    #'
+    p_prevalence_at_Tau
+    ggsave(
+      plot = p_prevalence_at_Tau,
+      filename =
+        glue("~/GitHub/disEpiODE/output/{tag}_grid_at_tau_plots_beta_{beta_mat_name}/",
+             "prevalence_plot_{params_spec}.png") %>%
+        fs::path_expand(),
+      units = "cm",
+      width = 13,
+      height = 11.5,
+      scale = 1.4,
+      dpi = 300
+    )
+    #'
+    #' ## Saving
+    #'
+    prevalence_at_tau <-
+      model_output$tau_model_output[
+        2, (1 + 1 + 2 * length(st_geometry(grid))):ncol(model_output$tau_model_output)
+        ,drop = FALSE]
+    #'
+    #'
+    tibble(tau) %>%
+      bind_cols(as_tibble(params),
+                beta_mat_name = beta_mat_name,
+                as_tibble(prevalence_at_tau)) ->
+      report_row
+
+    # add a row while running in batch mode, use `{tag}_output_summary.csv` if
+    # available
+    report_row_path <- glue("~/GitHub/disEpiODE/output/{tag}_summary.csv") %>%
+      fs::path_expand()
+    report_row %>%
+      readr::write_excel_csv(
+        append = TRUE,
+        col_names = !file.exists(report_row_path),
+        report_row_path)
+    #'
+    #'
+    # Save the `model_output` for this configuration
+    readr::write_rds(
+      model_output,
+      glue(str_c(
+        "~/GitHub/disEpiODE/output/{tag}_model_output_beta_{beta_mat_name}_",
+        params_spec,
+        ".rds"
+      )) %>%
+        fs::path_expand()
+    )
+  }
 )
