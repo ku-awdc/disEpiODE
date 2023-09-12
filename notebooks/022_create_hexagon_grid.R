@@ -58,11 +58,20 @@ grids_df %>%
       theme_blank_background()
   })
 
+# VALIDATION: must be empty
+grids_df %>%
+  filter(grid %>%
+           map_lgl(\(x) {
+             any(st_is(x, "LINESTRING"))
+           })
+  )
+
+st_is("POLYGON")
 
 
-
-
-
+# .Last.value$grid[[8]] -> bad_grid
+#
+# bad_grid %>% st_collection_extract("POLYGON")
 
 
 

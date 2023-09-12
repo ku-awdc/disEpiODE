@@ -59,7 +59,9 @@ create_grid <- function(n, landscape, landscape_scale,
   grid <- st_intersection(grid, landscape, dimensions = "polygon")
 
   # for hexagon, sometimes we have linestring here..
-  grid <- st_collection_extract(grid, type = "POLYGON")
+  if (!st_is(grid,"POLYGON")) {
+    grid <- st_collection_extract(grid, type = "POLYGON", warn = FALSE)
+  }
 
   matched_area <- isTRUE(all.equal(
     st_area(st_union(grid)),
