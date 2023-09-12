@@ -20,14 +20,14 @@ tag <- "017"
 params1 <- tidyr::expand_grid(
   world_scale = 29,
   # beta_baseline = 0.05,
-  # beta_baseline = c(0.05, 0.005),
-  beta_baseline = c(0.05),
+  # beta_baseline = c(0.05),
+  beta_baseline = c(0.05, 0.005, 0.01),
   buffer_offset_percent = 0.2,
   buffer_radius = 3.5,
   offset = c("corner", "middle", "bottom", "left"),
   # LOG: limit on laptop is 112
   # n = seq_len(100),
-  n = seq_len(25),
+  n = seq_len(50),
   # n = 50,
   # n = seq_len(4),
   # n = seq_len(200)
@@ -37,15 +37,17 @@ params1 <- tidyr::expand_grid(
   dplyr::sample_n(size = n()) %>%
   identity()
 
-# library(future)
-# # plan(multicore(workers = 4))
+library(future)
+plan(multisession(workers = 4))
+# plan(multicore(workers = 4))
 # plan(future::sequential())
-# library(furrr)
-
+library(furrr)
 
 output_summary <-
-  # furrr::future_map(
-  purrr::map(
+  furrr::future_map(
+    .options = furrr_options(),
+
+    # purrr::map(
     purrr::transpose(params1),
     \(params) {
       params_spec <- {
@@ -55,7 +57,7 @@ output_summary <-
       }
       # FIXME: remove this within the script..
       # params$root <- fs::path_expand(".")
-
+      tag <- tag
       rmarkdown::render(
         input = glue("notebooks/016_run_with_different_grid_offsets.R"),
         output_file =
@@ -75,3 +77,5 @@ output_summary %>%
   arrange(n) %>%
   # print(n = Inf, width = Inf) %>%
   write_excel_csv("output/{tag}_output_summary.csv" %>% glue())
+
+beepr::beep()
