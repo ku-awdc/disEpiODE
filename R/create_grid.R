@@ -4,6 +4,7 @@
 #' @param landscape Landscape as `sf` object
 #' @param landscape_scale Width / height of the landscape
 #' @param offset Aligned with initial cell placed at lower left corner
+#' @param square
 #'
 #' @note In `offset`, `"bottom"` means aligned to bottom;
 #' Thus bottom middle.
@@ -17,7 +18,8 @@
 #'
 #' @examples
 create_grid <- function(n, landscape, landscape_scale,
-                        offset = c("corner", "middle", "bottom", "left")) {
+                        offset = c("corner", "middle", "bottom", "left"),
+                        square = TRUE) {
   stopifnot(
     length(n) == 1,
     length(landscape_scale) == 1,
@@ -46,7 +48,7 @@ create_grid <- function(n, landscape, landscape_scale,
     )
 
   grid <- st_make_grid(landscape, cellsize = cellsize,
-                       offset = offset)
+                       offset = offset, square = square)
   grid <- st_sf(grid)
 
   grid <- st_intersection(grid, landscape)
