@@ -28,20 +28,26 @@ if (!exists("params")) {
     buffer_radius = 3.5,
     buffer_offset_percent = 0.2,
     offset = "corner",
-    n = 100
+    n = 40
   )
 }
 # print(params)
 #'
 #' Fixed parameters for document:
-world_scale   <- params$world_scale
-n             <- params$n
-beta_baseline <- params$beta_baseline
-buffer_radius <- params$buffer_radius
-buffer_offset_percent <- params$buffer_offset_percent
-offset <- params$offset
+
+# make all `params` names available
+list2env(params, envir = environment());
+
+params_spec <- {
+  params_min <- params
+  params_min$tag <- NULL
+  paste0(names(params_min), "_", params_min, collapse = "_")
+}
+rm(params_min)
+params
+params_spec
 #'
-# browser()
+#' Place the buffers in the landscape.
 #'
 source_target <-
   disEpiODE:::get_buffer_source_target(landscape_width = world_scale,
@@ -99,6 +105,7 @@ world_area <- st_area(world_landscape)
 grid <- create_grid(n, world_landscape,
                     landscape_scale = world_scale,
                     offset = offset)
+
 grid <- grid %>% rowid_to_column("id")
 population_total <- world_area
 grid$carry <- st_area(grid$geometry)
@@ -251,8 +258,8 @@ p_prevalence_at_Tau
 ggsave(
   plot = p_prevalence_at_Tau,
   filename =
-    glue("~/GitHub/disEpiODE/output/012_grid_at_tau_plots/",
-         "beta_baseline_{beta_baseline}_n_{n}.png") %>%
+    glue("~/GitHub/disEpiODE/output/{tag}_grid_at_tau_plots/",
+         "prevalence_plot_{params_spec}.png") %>%
     normalizePath(),
   units = "cm",
   width = 13,
@@ -262,8 +269,6 @@ ggsave(
 )
 #'
 #' ## Saving
-#'
-message(glue("{getwd()}"))
 #'
 prevalence_at_tau <-
   model_output$tau_model_output[
@@ -276,23 +281,23 @@ tibble(tau) %>%
             as_tibble(prevalence_at_tau)) ->
   report_row
 
+# add a row while running in batch mode, use `{tag}_output_summary.csv` if
+# available
 report_row %>%
   readr::write_excel_csv(
     append = TRUE,
-    col_names = !file.exists("~/GitHub/disEpiODE/output/012_summary.csv" %>%
+    col_names = !file.exists("~/GitHub/disEpiODE/output/{tag}_summary.csv" %>%
                                normalizePath()),
-    "~/GitHub/disEpiODE/output/012_summary.csv" %>% normalizePath())
+    "~/GitHub/disEpiODE/output/{tag}_summary.csv" %>% normalizePath())
 #'
 #'
-#'
+# Save the `model_output` for this configuration
 readr::write_rds(
   model_output,
   str_c(
-    "~/GitHub/disEpiODE/output/012_model_output_",
-    paste0(names(params), "_", params, collapse = "_"),
+    "~/GitHub/disEpiODE/output/{tag}_model_output_",
+    params_spec,
     ".rds"
   ) %>%
     normalizePath()
 )
-
-

@@ -11,17 +11,12 @@ library(tidyverse)
 # NOTE: Make sure to install disEpiODE before running this script
 
 # Clean the `output` directory, if it is there.
-# if (fs::dir_exists("output/")) {
-#   fs::dir_delete("output/")
-#   fs::dir_create("output/")
-# } else {
-#   fs::dir_create("output/")
-# }
+# clear_output_dir()
 
 
 #'
 #'
-tag <- "016"
+tag <- "017"
 params1 <- tidyr::expand_grid(
   world_scale = 29,
   # beta_baseline = 0.05,
@@ -47,17 +42,24 @@ params1 <- tidyr::expand_grid(
 # plan(future::sequential())
 # library(furrr)
 
+
 output_summary <-
   # furrr::future_map(
   purrr::map(
     purrr::transpose(params1),
     \(params) {
-      params$root <- normalizePath(".")
+      params_spec <- {
+        params_min <- params
+        params_min$tag <- NULL
+        paste0(names(params_min), "_", params_min, collapse = "_")
+      }
+      # FIXME: remove this within the script..
+      # params$root <- normalizePath(".")
 
       rmarkdown::render(
-        input = "notebooks/{tag}_run_with_common_area_normalisation.R" %>% glue(),
+        input = "notebooks/016_run_with_different_grid_offsets.R" %>% glue(),
         output_file =
-          glue::glue("{tag}_n_{n}_beta_baseline_{beta_baseline}.html"),
+          glue::glue("{tag}_{params_spec}_.html"),
         output_dir = "output/",
         params = params,
         intermediates_dir = tempdir(),
@@ -72,4 +74,3 @@ output_summary %>%
   bind_rows() %>%
   print(n = Inf, width = Inf) %>%
   write_excel_csv("output/{tag}_output_summary.csv" %>% glue())
-

@@ -169,7 +169,7 @@ stopifnot(
     isTRUE(all.equal(sum(y_init), sum(grid$carry)))
 )
 
-dist_grid <- st_distance(grid$geometry %>% st_centroid())
+dist_grid <- st_distance(st_centroid(grid$geometry))
 isSymmetric(dist_grid)
 beta_mat <- beta_baseline * exp(-dist_grid)
 # diag(beta_mat) <- diag(beta_mat) / grid_area[1]
