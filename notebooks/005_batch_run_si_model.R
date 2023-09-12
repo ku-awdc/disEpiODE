@@ -8,17 +8,9 @@ library(tidyverse)
 # library(glue)
 # library(disEpiODE)
 
-# Clean the `output` directory, if it is there.
-if (fs::dir_exists("output/")) {
-  fs::dir_delete("output/")
-  fs::dir_create("output/")
-} else {
-  fs::dir_create("output/")
-}
+# CLEAR OUTPUT DIR
+# clear_output_dir()
 
-
-#'
-#'
 
 params1 <- tidyr::expand_grid(
   world_scale = 29,
