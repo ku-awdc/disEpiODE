@@ -9,7 +9,7 @@ clear_output_dir <- function() {
     fs::dir_create("output/")
   } else {
     warning(
-      normalizePath("output/"),
+      fs::path_expand("output/"),
       "\n",
       " i.e. `output/` doesn't exist"
     )

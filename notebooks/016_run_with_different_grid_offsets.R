@@ -260,7 +260,7 @@ ggsave(
   filename =
     glue("~/GitHub/disEpiODE/output/{tag}_grid_at_tau_plots/",
          "prevalence_plot_{params_spec}.png") %>%
-    normalizePath(),
+    fs::path_expand(),
   units = "cm",
   width = 13,
   height = 11.5,
@@ -283,21 +283,22 @@ tibble(tau) %>%
 
 # add a row while running in batch mode, use `{tag}_output_summary.csv` if
 # available
+report_row_path <- glue("~/GitHub/disEpiODE/output/{tag}_summary.csv") %>%
+  fs::path_expand()
 report_row %>%
   readr::write_excel_csv(
     append = TRUE,
-    col_names = !file.exists("~/GitHub/disEpiODE/output/{tag}_summary.csv" %>%
-                               normalizePath()),
-    "~/GitHub/disEpiODE/output/{tag}_summary.csv" %>% normalizePath())
+    col_names = !file.exists(report_row_path),
+    report_row_path)
 #'
 #'
 # Save the `model_output` for this configuration
 readr::write_rds(
   model_output,
-  str_c(
+  glue(str_c(
     "~/GitHub/disEpiODE/output/{tag}_model_output_",
     params_spec,
     ".rds"
-  ) %>%
-    normalizePath()
+  )) %>%
+    fs::path_expand()
 )

@@ -253,7 +253,7 @@ ggsave(
   filename =
     glue("~/GitHub/disEpiODE/output/012_grid_at_tau_plots/",
          "beta_baseline_{beta_baseline}_n_{n}.png") %>%
-    normalizePath(),
+    fs::path_expand(),
   units = "cm",
   width = 13,
   height = 11.5,
@@ -280,8 +280,8 @@ report_row %>%
   readr::write_excel_csv(
     append = TRUE,
     col_names = !file.exists("~/GitHub/disEpiODE/output/012_summary.csv" %>%
-                               normalizePath()),
-    "~/GitHub/disEpiODE/output/012_summary.csv" %>% normalizePath())
+                               fs::path_expand()),
+    "~/GitHub/disEpiODE/output/012_summary.csv" %>% fs::path_expand())
 #'
 #'
 #'
@@ -292,7 +292,5 @@ readr::write_rds(
     paste0(names(params), "_", params, collapse = "_"),
     ".rds"
   ) %>%
-    normalizePath()
+    fs::path_expand()
 )
-
-

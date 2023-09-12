@@ -11,7 +11,7 @@ library(glue)
 # NOTE: Make sure to install disEpiODE before running this script
 
 # Clean the `output` directory, if it is there.
-# clear_output_dir()
+# disEpiODE:::clear_output_dir()
 options(error = recover)
 
 #'
@@ -34,7 +34,7 @@ params1 <- tidyr::expand_grid(
   # n = c(10, 22, 3)
   # n = c(10,22)
 ) %>%
-  # dplyr::sample_n(size = n()) %>%
+  dplyr::sample_n(size = n()) %>%
   identity()
 
 # library(future)
@@ -54,7 +54,7 @@ output_summary <-
         paste0(names(params_min), "_", params_min, collapse = "_")
       }
       # FIXME: remove this within the script..
-      # params$root <- normalizePath(".")
+      # params$root <- fs::path_expand(".")
 
       rmarkdown::render(
         input = glue("notebooks/016_run_with_different_grid_offsets.R"),
@@ -72,5 +72,6 @@ output_summary <-
 #'
 output_summary %>%
   bind_rows() %>%
-  print(n = Inf, width = Inf) %>%
+  arrange(n) %>%
+  # print(n = Inf, width = Inf) %>%
   write_excel_csv("output/{tag}_output_summary.csv" %>% glue())
