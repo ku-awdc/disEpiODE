@@ -70,6 +70,7 @@ output_summary_square <- output_summary %>%
   mutate(name = fct_facet_var(name))
 
 output_summary_square %>%
+  filter(n >= 3) %>%
   group_by(beta_baseline) %>%
   group_map(
     \(x, group_id) {
@@ -78,6 +79,8 @@ output_summary_square %>%
         aes(n, value, group = offset) +
         geom_step(aes(color = offset)) +
         facet_wrap(~name) +
+        # scale_y_continuous(trans = "log") +
+        # scale_y_continuous(trans = "sqrt") +
 
         labs(caption = glue("beta = {group_id$beta_baseline}")) +
         theme_blank_background()
