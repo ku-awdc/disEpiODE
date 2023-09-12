@@ -5,14 +5,14 @@ library(magrittr)
 library(tidyverse)
 # library(sf)
 #
-# library(glue)
+library(glue)
 # library(disEpiODE)
 
 # NOTE: Make sure to install disEpiODE before running this script
 
 # Clean the `output` directory, if it is there.
 # clear_output_dir()
-
+options(error = recover)
 
 #'
 #'
@@ -57,7 +57,7 @@ output_summary <-
       # params$root <- normalizePath(".")
 
       rmarkdown::render(
-        input = "notebooks/016_run_with_different_grid_offsets.R" %>% glue(),
+        input = glue("notebooks/016_run_with_different_grid_offsets.R"),
         output_file =
           glue::glue("{tag}_{params_spec}_.html"),
         output_dir = "output/",
