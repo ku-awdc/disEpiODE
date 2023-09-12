@@ -27,9 +27,14 @@ grids_df <- expand_grid(
                                      offset = offset, square = square))
   )
 grids_df$grid[[10]] %>% nrow()
+grids_df$grid[[10]] %>% st_collection_extract(type = "POLYGON")
+
 grids_df <- grids_df %>%
   mutate(n_grid = grid %>% map_dbl(nrow))
-
+#'
+#'
+#' Make sure that the grid count is somewhat the same between
+#' the two `square == TRUE` vs. `square == FALSE`.
 grids_df %>%
   glimpse() %>%
   ggplot() +
