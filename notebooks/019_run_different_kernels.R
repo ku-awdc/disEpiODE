@@ -235,7 +235,7 @@ beta_mat_list <- list(
   beta_mat_norm_half_normal = beta_mat_norm_half_normal
 )
 
-iwalk(
+imap(
   beta_mat_list, \(beta_mat, beta_mat_name) {
 
     #'
@@ -361,5 +361,8 @@ iwalk(
       )) %>%
         fs::path_expand()
     )
+    report_row
   }
-)
+) -> report_rows
+
+report_row <- bind_rows(report_rows)
