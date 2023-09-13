@@ -183,56 +183,54 @@ isSymmetric(dist_grid)
 beta_mat_exp <- beta_baseline * exp(-dist_grid)
 
 
-beta_mat_inverse <- beta_baseline / dist_grid
-diag(beta_mat_inverse) <- beta_baseline
-
-stopifnot(all(is.finite(beta_mat_inverse)))
+# beta_mat_inverse <- beta_baseline / dist_grid
+# diag(beta_mat_inverse) <- beta_baseline
+#
+# stopifnot(all(is.finite(beta_mat_inverse)))
 
 half_normal_kernel(0) # should be 1
 # dist_grid_half_normal <- dist_grid
 # diag(dist_grid_half_normal) <- 0
-beta_mat_half_normal <- beta_baseline * half_normal_kernel(dist_grid)
-diag(beta_mat_half_normal) <- beta_baseline
+beta_mat_half_normal <- beta_baseline * half_normal_kernel(dist_grid) / half_normal_kernel(0)
+# diag(beta_mat_half_normal) <- beta_baseline
+diag(beta_mat_half_normal) %>% unique()
 
 stopifnot(all(is.finite(beta_mat_half_normal)))
 
-# dist_grid_sqrt <- dist_grid
-# range(dist_grid_sqrt)
-# diag(dist_grid_sqrt) <- 1
-beta_mat_sqrt <- beta_baseline / sqrt(dist_grid)
-# diag(beta_mat_sqrt) <- 1 # WRONG
-diag(beta_mat_sqrt) <- beta_baseline
-range(beta_mat_sqrt)
+# # dist_grid_sqrt <- dist_grid
+# # range(dist_grid_sqrt)
+# # diag(dist_grid_sqrt) <- 1
+# beta_mat_sqrt <- beta_baseline / sqrt(dist_grid)
+# # diag(beta_mat_sqrt) <- 1 # WRONG
+# diag(beta_mat_sqrt) <- beta_baseline
+# range(beta_mat_sqrt)
+#
+# # hist(beta_mat_sqrt)
+# stopifnot(all(is.finite(beta_mat_sqrt)))
 
-# hist(beta_mat_sqrt)
-stopifnot(all(is.finite(beta_mat_sqrt)))
 
 
+# normal_half_normal <- function(x) {
+#   # see 020_plotting_distance_kernel
+#   2 *
+#     dnorm(x,
+#           sd = disEpiODE:::half_normal_sd(mean = 0.6366252),
+#           mean = 0)
+# }
 
-normal_half_normal <- function(x) {
-  # see 020_plotting_distance_kernel
-  2 *
-    dnorm(x,
-          sd = disEpiODE:::half_normal_sd(mean = 0.6366252),
-          mean = 0)
-}
+# normal_half_normal(0) # is almost one.
 
-normal_half_normal(0) # is almost one.
-
-beta_mat_norm_half_normal <- beta_baseline * normal_half_normal(dist_grid)
-
-stopifnot(all(is.finite(beta_mat_norm_half_normal)))
+# beta_mat_norm_half_normal <- beta_baseline * normal_half_normal(dist_grid)
+#
+# stopifnot(all(is.finite(beta_mat_norm_half_normal)))
 
 # diag(beta_mat) <- diag(beta_mat) / grid_area[1]
 #'
 #'
 
 beta_mat_list <- list(
-  beta_mat_inverse = beta_mat_inverse,
   beta_mat_exp = beta_mat_exp,
-  beta_mat_sqrt = beta_mat_sqrt,
-  beta_mat_half_normal = beta_mat_half_normal,
-  beta_mat_norm_half_normal = beta_mat_norm_half_normal
+  beta_mat_half_normal = beta_mat_half_normal
 )
 
 imap(

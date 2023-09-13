@@ -8,19 +8,25 @@ library(tibble)
 # par(m = 0)
 # curve(exp(-x), to = 20)
 # curve(1/sqrt(x), to = 20, add = TRUE)
-
-ggplot(tibble(x=c(0,10))) +
+# 1/sqrt(c) = 1
+sqrt_norm_const <-
+  pracma::integral(\(x) 1 / sqrt(x + sqrt(1)), xmin = 0, xmax = 10)
+sqrt_norm_const
+# sqrt_norm_const <- 20
+ggplot(tibble(x = c(0, 10))) +
   aes(x) +
   stat_function(fun = \(x) exp(-x), aes(color = "exp")) +
-  stat_function(fun = \(x) 1/sqrt(x), aes(color = "sqrt")) +
-  stat_function(fun = \(x)
-                disEpiODE:::half_normal_kernel(x) /
-                  disEpiODE:::half_normal_kernel(0), aes(color = "half-normal")) +
+  # stat_function(fun = \(x) 1 / (x + 1), aes(color = "inverse")) +
+  # stat_function(fun = \(x) (1/sqrt(x * sqrt_norm_const + sqrt(1)) - 1/sqrt(10*sqrt_norm_const)), aes(color = "sqrt")) +
+    stat_function(fun = \(x)
+                disEpiODE:::half_normal_kernel(x) / disEpiODE:::half_normal_kernel(0),
+                aes(color = "half-normal")) +
 
+  lims(y = c(0, NA)) +
   disEpiODE::theme_blank_background()
 #'
 #'
-#'
+
 pracma::integral(\(x)exp(-x), xmin = 0, xmax = Inf)
 pracma::integral(\(x)1 / sqrt(x), xmin = 0, xmax = Inf)
 pracma::integral(\(x)disEpiODE:::half_normal_kernel(x), xmin = 0, xmax = Inf)
