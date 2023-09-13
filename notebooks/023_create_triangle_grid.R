@@ -11,17 +11,32 @@ world <- create_landscape(scale = world_scale)
 world_landscape <- world$landscape
 # world_area <- st_area(world_landscape)
 
-st_make_grid(world_landscape, n = 2) %>%
-  st_triangulate() %>%
-  st_collection_extract() %>%
-  identity() %>%
-  length()
 
-st_triangulate(world_landscape) %>%
-  st_union() %>%
-  st_collection_extract("POLYGON") %>%
-  st_triangulate() %>%
-  identity()
+create_triangle_grid <- function(landscape, landscape_scale, n) {
+  st_make_grid(world_landscape, cellsize = landscape_scale / ( n / 2 ), square = TRUE) %>%
+    st_triangulate() %>%
+    st_collection_extract() %>%
+    identity()
+}
+create_triangle_grid(world_landscape, world_scale, n = 1) %>% length()
+create_triangle_grid(world_landscape, world_scale, n = 2) %>% length()
+create_triangle_grid(world_landscape, world_scale, n = 3) %>% length()
+create_triangle_grid(world_landscape, world_scale, n = 6) %>% length()
+create_triangle_grid(world_landscape, world_scale, n = 10) %>% length()
+
+ggplot() +
+  geom_sf(data = world_landscape, fill = NA, linetype = "dotted") +
+  geom_sf(data = create_triangle_grid(world_landscape, world_scale, n = 6), fill = NA) +
+
+
+  theme_blank_background()
+
+#
+# st_triangulate(world_landscape) %>%
+#   st_union() %>%
+#   st_collection_extract("POLYGON") %>%
+#   st_triangulate() %>%
+#   identity()
 #'
 #' ggplot() +
 #'   geom_sf(data = create_triangle_grid(n = 13, landscape = world_landscape), fill = NA) +
