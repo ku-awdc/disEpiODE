@@ -1,6 +1,5 @@
 #'---
 #'author: Matt
-#'
 #'---
 #'
 
@@ -10,13 +9,18 @@ type <- "hexagons"
 
 grid <-
   if (type == "square") {
-    st_make_grid(world_landscape, cellsize = rep(sqrt(area),2L), square = TRUE, what = "polygons")
+    st_make_grid(world_landscape, cellsize = rep(sqrt(area),2L),
+                 square = TRUE, what = "polygons")
   } else if (type == "hexagons") {
-    st_make_grid(world_landscape, cellsize = sqrt((2 * area) / 3 * sqrt(3)), square = FALSE, what = "polygons")
+    st_make_grid(world_landscape, cellsize = sqrt((2 * area) / 3 * sqrt(3)),
+                 square = FALSE, what = "polygons")
   } else if (type == "hexagons_rot") {
-    st_make_grid(world_landscape, cellsize = sqrt((2 * area) / 3 * sqrt(3)), square = FALSE, flat_topped = TRUE, what = "polygons")
+    st_make_grid(world_landscape, cellsize = sqrt((2 * area) / 3 * sqrt(3)),
+                 square = FALSE, flat_topped = TRUE, what = "polygons")
   } else if (type == "triangles") {
-    st_make_grid(world_landscape, cellsize = rep(sqrt(area * 2L), 2L), square = TRUE, what = "polygons") %>% st_triangulate_constrained() %>%
+    st_make_grid(world_landscape, cellsize = rep(sqrt(area * 2L), 2L),
+                 square = TRUE, what = "polygons") %>%
+      st_triangulate_constrained() %>%
       st_collection_extract()
   }
 
