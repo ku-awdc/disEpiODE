@@ -60,7 +60,10 @@ create_grid <- function(n, landscape, landscape_scale,
 
   # for hexagon, sometimes we have linestring here..
   if (!square) {
-    grid <- st_collection_extract(grid, type = "POLYGON", warn = FALSE)
+    if (any(!st_is(grid, "POLYGON"))) {
+
+      grid <- st_collection_extract(grid, type = "POLYGON", warn = FALSE)
+    }
   }
 
   matched_area <- isTRUE(all.equal(
@@ -93,4 +96,40 @@ create_grid <- function(n, landscape, landscape_scale,
         st_area(landscape))))
 
   grid
+}
+
+
+#' Title
+#'
+#' @param n
+#' @param cellsize
+#' @param landscape
+#'
+#' @note Will attempt to converge on `n` first, then `cellsize`
+#'
+#' @return
+#'
+#'
+#' @examples
+create_triangle_grid <- function(n, cellsize, landscape) {
+  tri_current <- landscape
+  cellsize_current <- unique(st_area(tri_current))
+  n_current <- length(tri_current)
+
+  repeat {
+    tri_next <- st_triangulate(tri_current)
+    cellsize_next <- unique(st_area(tri_next))
+    n_next <- length(tri_next)
+
+    if (!missing(n) && n_current <= n && n <= n_next) {
+      break;
+      # tri_current
+    }
+    if (!missing(cellsize) && cellsize_current <= cellsize && cellsize <= cellsize_next) {
+      break;
+      # cellsize_current
+    }
+    tri_current <- tri_next
+  }
+  tri_current
 }

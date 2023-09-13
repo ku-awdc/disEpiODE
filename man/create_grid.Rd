@@ -8,7 +8,8 @@ create_grid(
   n,
   landscape,
   landscape_scale,
-  offset = c("corner", "middle", "bottom", "left")
+  offset = c("corner", "middle", "bottom", "left"),
+  square = TRUE
 )
 }
 \arguments{
@@ -19,6 +20,8 @@ create_grid(
 \item{landscape_scale}{Width / height of the landscape}
 
 \item{offset}{Aligned with initial cell placed at lower left corner}
+
+\item{square}{}
 }
 \description{
 Title
