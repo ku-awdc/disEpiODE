@@ -47,7 +47,7 @@ output_summary %>%
 
 fct_facet_var <- . %>%
   factor(levels = c("normalised_tau", "prevalence_target", "prevalence_population", "prevalence_middle"),
-         labels = c("tau / norm(tau)", "prev(target)", "prev(pop)", "prev(center)")
+         labels = c("tau / last(tau)", "prev(target)", "prev(pop)", "prev(center)")
   )
 
 output_summary_square <- output_summary %>%
@@ -78,7 +78,7 @@ output_summary_square %>%
       ggplot(x) +
         aes(n, value, group = offset) +
         geom_step(aes(color = offset)) +
-        facet_wrap(~name) +
+        facet_wrap(~name, scales = "free_y") +
         # scale_y_continuous(trans = "log") +
         # scale_y_continuous(trans = "sqrt") +
 
