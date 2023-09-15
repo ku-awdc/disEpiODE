@@ -1,40 +1,59 @@
 #' Title
 #'
-#' @param n Number of splits in
 #' @param landscape Landscape as `sf` object
-#' @param landscape_scale Width / height of the landscape
+#' @param cellarea Positive number that is less than or equal to `st_area(landscape)`.
+#' @param celltype Cell shapes `c("square", "hexagon", "hexagon_rot", "triangle")`
 #' @param offset Aligned with initial cell placed at lower left corner
-#' @param square
 #'
 #' @note In `offset`, `"bottom"` means aligned to bottom;
 #' Thus bottom middle.
 #'
 #' ⬛⬛⬛
+#'
 #' ⚫⚫⬛
+#'
 #' ⚫⚫⬛
 #'
 #' @return
 #' @export
 #'
 #' @examples
-create_grid <- function(cellarea, landscape, landscape_scale,
+create_grid <- function(landscape, cellarea,
                         celltype = c("square", "hexagon", "hexagon_rot", "triangle"),
-                        offset = c("corner", "middle", "bottom", "left"),
-                        square = TRUE) {
+                        offset = c("corner", "middle", "bottom", "left")) {
   stopifnot(
-    length(n) == 1,
-    length(landscape_scale) == 1,
-    "must split landscape into something" =
-      n > 0,
-    "both cellsize in either direction must be provided" =
-      length(n) == length(landscape_scale)
+    "not implemented" = missing(offset),
+    "`cellarea must be postivie number" = cellarea > 0,
+    "`cellarea` must not exceed provided `landscape` in size" =
+      cellarea <= sum(st_area(landscape)),
+    "`cellarea` must be of size 1 or 2" =
+      1 <= length(cellarea) && length(cellarea) <= 2
   )
   celltype <- match.arg(celltype, celltype)
+
+  # offset <- match.arg(offset, choices = offset, several.ok = FALSE)
+  # offset <- st_bbox(landscape)[c("xmin", "ymin")] -
+  #   switch(offset,
+  #          corner = {
+  #            c(0,0)
+  #          },
+  #          middle = {
+  #            c(cellsize, cellsize) / 2
+  #          },
+  #          bottom = {
+  #            c(cellsize/2, 0)
+  #          },
+  #          left = {
+  #            c(0, cellsize/2)
+  #          }
+  #   )
+
+  # FIXME: `offset` is missing here! it is not enough just to uncomment the above
   grid <-
     switch(
-      cellsize,
+      celltype,
       square = {
-        cellsize <- sqrt(c(area, area))
+        cellsize <- sqrt(c(cellarea, cellarea))
         st_make_grid(landscape, cellsize = cellsize,
                      square = TRUE, what = "polygons")
 
@@ -55,20 +74,20 @@ create_grid <- function(cellarea, landscape, landscape_scale,
         # => cellsize = sqrt(2×area / sqrt(3))
 
 
-        cellsize <- sqrt((2 * area) / sqrt(3))
+        cellsize <- sqrt((2 * cellarea) / sqrt(3))
         # NOTE: see `sf:::make_hex_grid` for more details
         st_make_grid(landscape, cellsize = cellsize,
                      square = FALSE, what = "polygons")
 
       },
       hexagon_rot = {
-        cellsize <- sqrt((2 * area) / 3 * sqrt(3))
+        cellsize <- sqrt((2 * cellarea) / 3 * sqrt(3))
         st_make_grid(landscape, cellsize = cellsize,
                      square = FALSE, flat_topped = TRUE, what = "polygons")
       },
       triangle = {
-        # cellsize <- rep(sqrt(area * 2L), 2L)
-        cellsize <- sqrt(c(2 * area, 2 * area))
+        # cellsize <- rep(sqrt(cellarea * 2L), 2L)
+        cellsize <- sqrt(c(2 * cellarea, 2 * cellarea))
         st_make_grid(landscape, cellsize = cellsize,
                      square = TRUE, what = "polygons") %>%
           st_triangulate_constrained() %>%
@@ -78,37 +97,10 @@ create_grid <- function(cellarea, landscape, landscape_scale,
     )
 
   grid <- grid %>%
-    st_intersection(landscape) %>%
+    st_intersection(landscape, dimensions = "polygon") %>%
     st_sf() %>%
+    # note: for hexagon, sometimes we have LINESTRING here..
     dplyr::filter(st_area(geometry) > 0)
-
-  offset <- match.arg(offset, choices = offset, several.ok = FALSE)
-
-  offset <- st_bbox(landscape)[c("xmin", "ymin")] -
-    switch(offset,
-           corner = {
-             c(0,0)
-           },
-           middle = {
-             c(cellsize, cellsize) / 2
-           },
-           bottom = {
-             c(cellsize/2, 0)
-           },
-           left = {
-             c(0, cellsize/2)
-           }
-    )
-
-  grid <- st_make_grid(landscape, cellsize = cellsize,
-                       offset = offset, square = square,
-                       what = "polygons")
-  grid <- st_sf(grid)
-
-  grid <- st_intersection(grid, landscape, dimensions = "polygon")
-
-  # for hexagon, sometimes we have linestring here..
-  grid[!st_is(grid, "POLYGON"), ] <- NULL
 
   matched_area <- isTRUE(all.equal(
     st_area(st_union(grid)),
@@ -116,6 +108,7 @@ create_grid <- function(cellarea, landscape, landscape_scale,
   ))
 
   if (!matched_area) {
+    stop("this shouldn't be necessary anymore")
     # fix an issue with `st_make_grid` where the boundary gets an extra
     # set of grids sometimes..
     grid <- st_filter(grid,
@@ -142,38 +135,3 @@ create_grid <- function(cellarea, landscape, landscape_scale,
   grid
 }
 
-
-#' Title
-#'
-#' @param n
-#' @param cellsize
-#' @param landscape
-#'
-#' @note Will attempt to converge on `n` first, then `cellsize`
-#'
-#' @return
-#'
-#'
-#' @examples
-create_triangle_grid <- function(n, cellsize, landscape) {
-  tri_current <- landscape
-  cellsize_current <- unique(st_area(tri_current))
-  n_current <- length(tri_current)
-
-  repeat {
-    tri_next <- st_triangulate(tri_current)
-    cellsize_next <- unique(st_area(tri_next))
-    n_next <- length(tri_next)
-
-    if (!missing(n) && n_current <= n && n <= n_next) {
-      break;
-      # tri_current
-    }
-    if (!missing(cellsize) && cellsize_current <= cellsize && cellsize <= cellsize_next) {
-      break;
-      # cellsize_current
-    }
-    tri_current <- tri_next
-  }
-  tri_current
-}

@@ -5,23 +5,20 @@
 \title{Title}
 \usage{
 create_grid(
-  n,
   landscape,
-  landscape_scale,
-  offset = c("corner", "middle", "bottom", "left"),
-  square = TRUE
+  cellarea,
+  celltype = c("square", "hexagon", "hexagon_rot", "triangle"),
+  offset = c("corner", "middle", "bottom", "left")
 )
 }
 \arguments{
-\item{n}{Number of splits in}
-
 \item{landscape}{Landscape as \code{sf} object}
 
-\item{landscape_scale}{Width / height of the landscape}
+\item{cellarea}{Positive number that is less than or equal to \code{st_area(landscape)}.}
+
+\item{celltype}{Cell shapes \code{c("square", "hexagon", "hexagon_rot", "triangle")}}
 
 \item{offset}{Aligned with initial cell placed at lower left corner}
-
-\item{square}{}
 }
 \description{
 Title
@@ -31,6 +28,8 @@ In \code{offset}, \code{"bottom"} means aligned to bottom;
 Thus bottom middle.
 
 ⬛⬛⬛
+
 ⚫⚫⬛
+
 ⚫⚫⬛
 }
