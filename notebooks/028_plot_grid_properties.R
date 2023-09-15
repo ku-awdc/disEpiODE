@@ -71,14 +71,10 @@ grid_df %>% {
     theme_blank_background() +
     # scale_x_log10() +
     # scale_x_log_rev() +
-    # scale_x_log10_rev() +
     scale_y_log10() +
     scale_x_log10_rev() +
-    theme(axis.line.x = element_line(
-      arrow = arrow(
-        length = unit(0.5, "char"),
-        ends = "first", type = "closed")
-    )) +
+    theme_reverse_arrow_x() +
+    # scale_y_log10() +
     NULL
 } %>%
   # plotly::ggplotly() %>%
