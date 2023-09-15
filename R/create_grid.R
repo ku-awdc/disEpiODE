@@ -17,7 +17,8 @@
 #' @export
 #'
 #' @examples
-create_grid <- function(n, landscape, landscape_scale,
+create_grid <- function(cellarea, landscape, landscape_scale,
+                        celltype = c("square", "hexagon", "hexagon_rot", "triangle"),
                         offset = c("corner", "middle", "bottom", "left"),
                         square = TRUE) {
   stopifnot(
@@ -28,11 +29,59 @@ create_grid <- function(n, landscape, landscape_scale,
     "both cellsize in either direction must be provided" =
       length(n) == length(landscape_scale)
   )
-  cellsize <- if (square) {
-    landscape_scale / n
-  } else {
-    c((landscape_scale * 2) / (sqrt(3) * n))
-  }
+  celltype <- match.arg(celltype, celltype)
+  grid <-
+    switch(
+      cellsize,
+      square = {
+        cellsize <- sqrt(c(area, area))
+        st_make_grid(landscape, cellsize = cellsize,
+                     square = TRUE, what = "polygons")
+
+      },
+      hexagon = {
+        # Solve side-length for hexagons area
+        # area = (3×sqrt(3) / 2) × s**2
+        # area × 2 / (3×sqrt(3)) = s**2
+        # s = sqrt(2×area / (3×sqrt(3)))
+        #
+        # Documentation for `st_make_grid` states that:
+        #
+        # s = cellsize / sqrt(3)
+        #
+        # Insert and solve for `cellsize`
+        #
+        # => cellsize / sqrt(3) = sqrt(2×area / (3×sqrt(3)))
+        # => cellsize = sqrt(2×area / sqrt(3))
+
+
+        cellsize <- sqrt((2 * area) / sqrt(3))
+        # NOTE: see `sf:::make_hex_grid` for more details
+        st_make_grid(landscape, cellsize = cellsize,
+                     square = FALSE, what = "polygons")
+
+      },
+      hexagon_rot = {
+        cellsize <- sqrt((2 * area) / 3 * sqrt(3))
+        st_make_grid(landscape, cellsize = cellsize,
+                     square = FALSE, flat_topped = TRUE, what = "polygons")
+      },
+      triangle = {
+        # cellsize <- rep(sqrt(area * 2L), 2L)
+        cellsize <- sqrt(c(2 * area, 2 * area))
+        st_make_grid(landscape, cellsize = cellsize,
+                     square = TRUE, what = "polygons") %>%
+          st_triangulate_constrained() %>%
+          st_collection_extract()
+
+      }
+    )
+
+  grid <- grid %>%
+    st_intersection(landscape) %>%
+    st_sf() %>%
+    dplyr::filter(st_area(geometry) > 0)
+
   offset <- match.arg(offset, choices = offset, several.ok = FALSE)
 
   offset <- st_bbox(landscape)[c("xmin", "ymin")] -

@@ -12,6 +12,7 @@ grid <-
     st_make_grid(world_landscape, cellsize = rep(sqrt(area),2L),
                  square = TRUE, what = "polygons")
   } else if (type == "hexagons") {
+    # missing cellsize/sqrt(3) = s derivation, see `create_grid`
     st_make_grid(world_landscape, cellsize = sqrt((2 * area) / 3 * sqrt(3)),
                  square = FALSE, what = "polygons")
   } else if (type == "hexagons_rot") {
@@ -39,7 +40,7 @@ st_area(world_landscape)
 grid %>% st_area() %>% density() %>% plot()
 
 #
-sf:::make_hex_grid()
+# sf:::make_hex_grid()
 #
 # dx = 5
 # dy = sqrt(3) * dx/2
