@@ -73,3 +73,27 @@ trans_rev_log10 <- scales::trans_new(
   minor_breaks = scales::regular_minor_breaks(reverse = TRUE)
 )
 
+#' @description
+#' `theme_reverse_arrow_x` / `theme_reverse_arrow_y` places an
+#' arrow-head on the opposite end of the axis, as to indicate
+#' in which is the positive direction on the plot.
+#'
+#' @export
+#' @rdname scale_xylog_rev
+theme_reverse_arrow_x <- function() {
+  ggplot2::theme(axis.line.x = ggplot2::element_line(
+    arrow = ggplot2::arrow(
+      length = ggplot2::unit(0.5, "char"),
+      ends = "first", type = "closed")
+  ))
+}
+
+#' @export
+#' @rdname scale_xylog_rev
+theme_reverse_arrow_y <- function() {
+  ggplot2::theme(axis.line.y = ggplot2::element_line(
+    arrow = ggplot2::arrow(
+      length = ggplot2::unit(0.5, "char"),
+      ends = "first", type = "closed")
+  ))
+}
