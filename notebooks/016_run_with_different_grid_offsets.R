@@ -102,8 +102,7 @@ stopifnot(
 
 world_area <- st_area(world_landscape)
 
-grid <- create_grid(n = n,
-                    landscape = world_landscape,
+grid <- create_grid(n, world_landscape,
                     landscape_scale = world_scale,
                     offset = offset)
 
@@ -261,7 +260,7 @@ ggsave(
   filename =
     glue("~/GitHub/disEpiODE/output/{tag}_grid_at_tau_plots/",
          "prevalence_plot_{params_spec}.png") %>%
-    fs::path_expand(),
+    normalizePath(),
   units = "cm",
   width = 13,
   height = 11.5,
@@ -282,24 +281,21 @@ tibble(tau) %>%
             as_tibble(prevalence_at_tau)) ->
   report_row
 
-# add a row while running in batch mode, use `{tag}_output_summary.csv` if
-# available
-report_row_path <- glue("~/GitHub/disEpiODE/output/{tag}_summary.csv") %>%
-  fs::path_expand()
 report_row %>%
   readr::write_excel_csv(
     append = TRUE,
-    col_names = !file.exists(report_row_path),
-    report_row_path)
+    col_names = !file.exists("~/GitHub/disEpiODE/output/{tag}_summary.csv" %>%
+                               normalizePath()),
+    "~/GitHub/disEpiODE/output/012_summary.csv" %>% normalizePath())
 #'
 #'
 # Save the `model_output` for this configuration
 readr::write_rds(
   model_output,
-  glue(str_c(
+  str_c(
     "~/GitHub/disEpiODE/output/{tag}_model_output_",
     params_spec,
     ".rds"
-  )) %>%
-    fs::path_expand()
+  ) %>%
+    normalizePath()
 )

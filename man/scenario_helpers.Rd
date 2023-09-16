@@ -2,6 +2,7 @@
 % Please edit documentation in R/scenario_helpers.R
 \name{get_buffer_source_target}
 \alias{get_buffer_source_target}
+\alias{get_middle_buffer}
 \title{Title}
 \usage{
 get_buffer_source_target(
@@ -10,6 +11,8 @@ get_buffer_source_target(
   buffer_radius = 5,
   buffer_offset_percent = 0.1
 )
+
+get_middle_buffer(source_target)
 }
 \arguments{
 \item{buffer_offset_percent}{}

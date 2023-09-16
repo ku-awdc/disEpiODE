@@ -9,6 +9,7 @@
 #' @return
 #' @export
 #'
+#' @rdname scenario_helpers
 #' @examples
 #' world_scale <- 17
 #' get_buffer_source_target(landscape_width = world_scale,
@@ -58,3 +59,21 @@ get_buffer_source_target <-
 
     source_target
   }
+
+
+#' @param source_target
+#' @export
+#' @rdname scenario_helpers
+get_middle_buffer <- function(source_target) {
+  middle_buffer_point <- source_target$buffer_point %>%
+    st_coordinates() %>%
+    st_linestring() %>%
+    st_centroid()
+  middle_buffer <- st_sf(buffer_point = st_sfc(middle_buffer_point)) %>%
+    mutate(label = "middle",
+           buffer_polygon = st_buffer(buffer_point, buffer_radius),
+           #TODO: replace with PI**2*buffer_radius
+           buffer_area = st_area(buffer_polygon)
+    )
+  middle_buffer
+}

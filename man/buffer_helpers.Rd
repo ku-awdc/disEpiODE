@@ -2,14 +2,19 @@
 % Please edit documentation in R/buffer_helpers.R
 \name{create_buffer_overlap}
 \alias{create_buffer_overlap}
+\alias{create_buffer_overlap_map}
 \title{Title}
 \usage{
 create_buffer_overlap(grid, buffer)
+
+create_buffer_overlap_map(buffer_overlap)
 }
 \arguments{
-\item{buffer}{}
+\item{buffer_overlap}{}
 }
 \description{
+Title
+
 Title
 }
 \examples{

@@ -3,9 +3,10 @@
 #'
 #' @param grid
 #' @param buffer
+#' @export
 #'
 #' @return
-#'
+#' @rdname buffer_helpers
 #' @examples
 create_buffer_overlap <- function(grid, buffer) {
 
@@ -17,9 +18,16 @@ create_buffer_overlap <- function(grid, buffer) {
 
   #' Define source- and target-buffer indices and weights
   # this assumes that `grid` has `id` in it
-  st_intersection(buffer %>%
-                    `st_geometry<-`("buffer_polygon"),
-                  grid) %>%
+  buffer_intersection <- st_intersection(y = grid,
+                  buffer %>%
+                    `st_geometry<-`("buffer_polygon"))
+  # browser()
+  buffer_intersection %>%
+    # st_make_valid() %>%
+    # st_as_sf() %>%
+    # filter out intersection POINT
+    filter(st_area(.$buffer_polygon) > 0) %>%
+    st_sf() %>%
     rename(id_overlap = id,
            buffer_overlap = buffer_polygon) %>%
     mutate(overlap_area = st_area(buffer_overlap),
@@ -34,6 +42,15 @@ create_buffer_overlap <- function(grid, buffer) {
   )
 }
 
+#' Title
+#'
+#' @param buffer_overlap
+#'
+#' @return
+#' @export
+#'
+#' @rdname buffer_helpers
+#' @examples
 create_buffer_overlap_map <- function(buffer_overlap) {
   stopifnot(
     inherits(buffer_overlap, "buffer_overlap"),
