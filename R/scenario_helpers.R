@@ -64,7 +64,7 @@ get_buffer_source_target <-
 #' @param source_target
 #' @export
 #' @rdname scenario_helpers
-get_middle_buffer <- function(source_target) {
+get_middle_buffer <- function(source_target, buffer_radius) {
   middle_buffer_point <- source_target$buffer_point %>%
     st_coordinates() %>%
     st_linestring() %>%

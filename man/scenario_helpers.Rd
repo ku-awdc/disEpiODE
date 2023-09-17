@@ -12,7 +12,7 @@ get_buffer_source_target(
   buffer_offset_percent = 0.1
 )
 
-get_middle_buffer(source_target)
+get_middle_buffer(source_target, buffer_radius)
 }
 \arguments{
 \item{buffer_offset_percent}{}

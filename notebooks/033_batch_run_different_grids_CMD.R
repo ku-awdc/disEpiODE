@@ -20,24 +20,24 @@ params1 <- tidyr::expand_grid(
   world_scale = world_scale,
   # beta_baseline = 0.05,
   # beta_baseline = c(0.05),
-  # beta_baseline = c(0.1, 0.05, 0.005, 0.01),
-  beta_baseline = c(0.05),
+  beta_baseline = c(0.1, 0.05, 0.005, 0.01),
+  # beta_baseline = c(0.05),
   buffer_offset_percent = 0.2,
   buffer_radius = 3.5,
-  cellarea = seq_cellarea(precision = 0.1, min_cellarea = 0.5, max_cellarea = world_scale),
-  # cellarea = seq_cellarea(precision = 0.1, min_cellarea = 0.2, max_cellarea = world_scale),
-  # celltype = c("square", "hexagon", "hexagon_rot", "triangle"),
-  celltype = c("square"),
+  cellarea = seq_cellarea(precision = 0.1, min_cellarea = 0.25, max_cellarea = world_scale),
+  celltype = c("square", "hexagon", "hexagon_rot", "triangle"),
+  # celltype = commandArgs(TRUE),
+  # celltype = "square",
 
   # offset = "corner",
   # offset = c("corner", "middle", "bottom", "left"), #TODO
 ) %>%
-  dplyr::sample_n(size = dplyr::n()) %>%
+  # dplyr::sample_n(size = dplyr::n()) %>%
   identity()
 
 library(future)
-# plan(multisession(workers = 4))
-plan(multicore(workers = 4))
+plan(multisession(workers = 6))
+# plan(multicore(workers = 6))
 # plan(future::sequential())
 library(furrr)
 
@@ -73,7 +73,7 @@ output_summary <-
 #'
 output_summary %>%
   bind_rows() %>%
-  arrange(n) %>%
+  arrange(cellarea) %>%
   # print(n = Inf, width = Inf) %>%
   readr::write_excel_csv(glue("output/{tag}_output_summary.csv"))
 

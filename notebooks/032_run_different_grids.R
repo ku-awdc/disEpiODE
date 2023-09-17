@@ -59,7 +59,8 @@ source_target <-
                            landscape_height = world_scale,
                            buffer_radius = buffer_radius,
                            buffer_offset_percent = buffer_offset_percent)
-middle_buffer <- get_middle_buffer(source_target)
+middle_buffer <- get_middle_buffer(source_target = source_target,
+                                   buffer_radius = buffer_radius)
 
 world <- create_landscape(scale = world_scale)
 world_landscape <- world$landscape
