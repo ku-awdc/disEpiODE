@@ -29,8 +29,8 @@ if (!exists("params")) {
     buffer_radius = 3.5,
     buffer_offset_percent = 0.2,
     # celltype = c("square", "hexagon", "hexagon_rot", "triangle"),
-    celltype = "square",
-    cellarea = 0.5
+    celltype = "triangle",
+    cellarea = 10
     #TODO
     # offset = "corner",
     # n = 40 #deprecated
@@ -222,11 +222,32 @@ diag(beta_mat_half_normal) %>% unique() %>% {
 
 stopifnot(all(is.finite(beta_mat_half_normal)))
 
+conflicts_prefer(dplyr::lag)
+conflicts_prefer(dplyr::filter)
+
+grid
+hexscape::generate_connectedness(
+  patches = grid %>%
+    rowid_to_column("Index"),
+  connectedness_fun = \(x) beta_baseline * half_normal_kernel(x) /
+    half_normal_kernel(0),
+  max_distance = 5,
+  sparse = FALSE,
+) ->
+  beta_mat_half_normal_corrected
+beta_mat_half_normal_corrected %>%
+  str()
+# diag(beta_mat_half_normal)
+diag(beta_mat_half_normal_corrected) <- beta_baseline
+
+# RETRIEVE max_distance from this plot!
+# curve(beta_baseline * half_normal_kernel(x) / half_normal_kernel(0), to = 20)
+
 #' ## Transmission kernels
 
 beta_mat_list <- list(
-  beta_mat_exp = beta_mat_exp,
-  beta_mat_half_normal = beta_mat_half_normal
+  beta_mat_half_normal = beta_mat_half_normal,
+  beta_mat_half_normal_corrected = beta_mat_half_normal_corrected
 )
 
 imap(
@@ -362,3 +383,4 @@ imap(
 ) -> report_rows
 
 report_row <- bind_rows(report_rows)
+report_row

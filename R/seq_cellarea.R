@@ -12,7 +12,6 @@
 #' @examples
 seq_cellarea <- function(precision, min_cellarea, max_cellarea) {
   stopifnot(
-
     0 <= precision && precision <= 1,
     min_cellarea <= max_cellarea
   )
