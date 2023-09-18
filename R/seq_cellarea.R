@@ -11,6 +11,8 @@
 #'
 #' @examples
 seq_cellarea <- function(precision, min_cellarea, max_cellarea) {
+  # TODO: add an option to specify `n` between min/max_cellarea
+  # instead of providing `precision`
   stopifnot(
     0 <= precision && precision <= 1,
     min_cellarea <= max_cellarea
