@@ -4,15 +4,16 @@
 \alias{seq_cellarea}
 \title{Generate \code{cellarea} sequence}
 \usage{
-seq_cellarea(precision, min_cellarea, max_cellarea)
+seq_cellarea(precision = NULL, n = NULL, min_cellarea, max_cellarea)
 }
 \arguments{
-\item{precision}{Numeric between \code{0} and \code{1}}
+\item{n, precision}{provide either \code{n} or \code{precision}, where \code{n} entails number of cells between
+\code{min_cellarea} and \code{max_cellarea}, and \code{precision} is \code{(1 - precision)^n} sequence}
 
-\item{min_cellarea, max_cellarea}{}
+\item{min_cellarea, max_cellarea}{Numeric}
 }
 \value{
-Sequence between \code{min_cellarea} and \code{max_cellarea}
+Sequence of length \code{n + 1} between \code{min_cellarea} and \code{max_cellarea}
 }
 \description{
 Geometric sequence of \code{cellarea} used in \link{create_grid} based
