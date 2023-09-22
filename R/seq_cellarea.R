@@ -38,5 +38,5 @@ seq_cellarea <- function(precision = NULL, n = NULL, min_cellarea, max_cellarea)
   } else {
     stop("must provide either `n` or `precision`")
   }
-  max_cellarea * (1 - precision) ** (0:n)
+  min_cellarea * (1 - precision) ** (0:n)
 }
