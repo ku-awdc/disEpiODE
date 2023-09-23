@@ -345,7 +345,7 @@ imap(
       filename =
         glue("~/GitHub/disEpiODE/output/{tag}_grid_at_tau_plots_beta_{beta_mat_name}/",
              "prevalence_plot_{params_spec}.png") %>%
-        fs::path_expand(),
+        normalizePath(),
       units = "cm",
       width = 13,
       height = 11.5,
@@ -370,7 +370,7 @@ imap(
     # add a row while running in batch mode, use `{tag}_output_summary.csv` if
     # available
     report_row_path <- glue("~/GitHub/disEpiODE/output/{tag}_summary.csv") %>%
-      fs::path_expand()
+      normalizePath()
     report_row %>%
       readr::write_excel_csv(
         append = TRUE,
@@ -386,7 +386,7 @@ imap(
         params_spec,
         ".rds"
       )) %>%
-        fs::path_expand()
+        normalizePath()
     )
     report_row
   }
