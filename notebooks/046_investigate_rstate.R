@@ -171,6 +171,9 @@ p_rstate_base <- tau_df %>%
   labs(color = expression(paste(Delta, " ", t[max]))) +
   # theme_reverse_arrow_x() +
   theme_blank_background()
+#'
+#'
+#' Auxillary plots: Are there more information in`rstate`?
 p_rstate_base +
   aes(y = rstate_1)
 p_rstate_base +
