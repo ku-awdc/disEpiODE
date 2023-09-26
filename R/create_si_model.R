@@ -11,7 +11,7 @@
 #' @export
 #'
 #' @examples
-create_si_model <- function(grid, beta_mat, y_init, target_overlap, middle_overlap, verbose = TRUE) {
+create_si_model <- function(grid, beta_mat, y_init, target_overlap, middle_overlap, hmax = 0, verbose = TRUE) {
 
   stopifnot(
     all(c("id", "geometry", "carry", "area") %in% names(grid)),
@@ -20,10 +20,10 @@ create_si_model <- function(grid, beta_mat, y_init, target_overlap, middle_overl
     all(c("id_overlap", "weight") %in% names(target_overlap)),
     all(c("id_overlap", "weight") %in% names(middle_overlap))
   )
-
+  n_grid <- nrow(grid)
   parameter_list <- list(
     beta_mat = beta_mat,
-    N = nrow(grid),
+    N = n_grid,
     carry = grid$carry,
     area = grid$area,
     target_overlap = target_overlap,
@@ -42,6 +42,7 @@ create_si_model <- function(grid, beta_mat, y_init, target_overlap, middle_overl
     rlang::exec(deSolve::ode,
                 !!!ode_parameters,
                 rootfunc = find_target_prevalence,
+                hmax = hmax,
                 times = c(0, Inf))
   #TODO: check if tau exists
   tau <- tau_model_output[2, 1]
@@ -56,7 +57,8 @@ create_si_model <- function(grid, beta_mat, y_init, target_overlap, middle_overl
 
   list(
     tau_model_output = tau_model_output,
-    model_output = model_output
+    model_output = model_output,
+    n_grid = n_grid
   )
 }
 

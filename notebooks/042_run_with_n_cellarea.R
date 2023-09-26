@@ -28,8 +28,12 @@ if (!exists("params")) {
     beta_baseline = 0.05,
     buffer_radius = 3.5,
     buffer_offset_percent = 0.2,
-    offset = "corner",
-    n = 40
+    # celltype = c("square", "hexagon", "hexagon_rot", "triangle"),
+    celltype = "square",
+    cellarea = 0.5
+    #TODO
+    # offset = "corner",
+    # n = 40 #deprecated
   )
 }
 # print(params)
@@ -51,20 +55,12 @@ params_spec
 #' Place the buffers in the landscape.
 #'
 source_target <-
-  disEpiODE:::get_buffer_source_target(landscape_width = world_scale,
-                                       landscape_height = world_scale,
-                                       buffer_radius = buffer_radius,
-                                       buffer_offset_percent = buffer_offset_percent)
-middle_buffer_point <- source_target$buffer_point %>%
-  st_coordinates() %>%
-  st_linestring() %>%
-  st_centroid()
-middle_buffer <- st_sf(buffer_point = st_sfc(middle_buffer_point)) %>%
-  mutate(label = "middle",
-         buffer_polygon = st_buffer(buffer_point, buffer_radius),
-         #TODO: replace with PI**2*buffer_radius
-         buffer_area = st_area(buffer_polygon)
-  )
+  get_buffer_source_target(landscape_width = world_scale,
+                           landscape_height = world_scale,
+                           buffer_radius = buffer_radius,
+                           buffer_offset_percent = buffer_offset_percent)
+middle_buffer <- get_middle_buffer(source_target = source_target,
+                                   buffer_radius = buffer_radius)
 
 world <- create_landscape(scale = world_scale)
 world_landscape <- world$landscape
@@ -74,7 +70,7 @@ glimpse(middle_buffer)
 
 ggplot() +
   geom_sf(data = world_landscape, linetype = "dotted", fill = NA) +
-  geom_sf(data = middle_buffer_point, aes(color = "middle")) +
+  geom_sf(data = middle_buffer, aes(geometry = buffer_point, color = "middle")) +
   geom_sf(data = source_target, aes(color = label, geometry = buffer_point)) +
   theme_blank_background() +
   NULL
@@ -103,10 +99,9 @@ stopifnot(
 
 world_area <- st_area(world_landscape)
 
-grid <- create_grid(n = n,
-                    landscape = world_landscape,
-                    landscape_scale = world_scale,
-                    offset = offset)
+grid <- create_grid(landscape = world_landscape,
+                    cellarea = cellarea,
+                    celltype = celltype)
 
 grid <- grid %>% rowid_to_column("id")
 population_total <- world_area
@@ -116,14 +111,36 @@ y_init <- c(S = grid$carry,
             I = numeric(length(grid$carry)))
 #'
 
-# disEpiODE:::create_buffer_overlap(grid, buffer)
-all_buffers %>%
+
+
+# all_buffers_overlap <- all_buffers %>%
+#   as_tibble() %>%
+#   reframe(.by = label,
+#           create_buffer_overlap(grid, tibble(buffer_polygon = buffer_polygon))[[1]]) %>%
+#   st_sf(sf_column_name = "buffer_overlap")
+all_buffers_overlap <-
+  all_buffers %>%
   rowwise() %>%
   dplyr::group_map(
-    \(buffer, ...)
-    disEpiODE:::create_buffer_overlap(grid, buffer)
-  ) ->
-  all_buffers_overlap
+    \(buffer, ...) {
+      create_buffer_overlap(grid, buffer)
+    }
+  )
+
+# all_buffers_overlap <- map(
+#   all_buffers %>% nest(data = -label) %>% deframe(),
+#   \(buffer) create_buffer_overlap(grid = grid, buffer = buffer)
+# )
+# all_buffers_overlap$source[[1]]
+# all_buffers_overlap$middle[[1]]
+# all_buffers_overlap$target[[1]]
+
+
+# all_buffers_overlap$middle[[1]] %>%
+#   # filter(st_area(buffer_overlap) > 0) %>%
+#   identity() %>%
+#   print(width = Inf)
+#   # View()
 
 # all_buffers_overlap %>% class()
 # all_buffers_overlap %>% lapply(class)
@@ -131,11 +148,23 @@ all_buffers %>%
 # all_buffers_overlap[[1]] %>% attributes()
 # all_buffers_overlap %>% flatten() %>%
 #   bind_rows()
+# all_buffers_overlap[[3]][[1]] %>% View()
+
+
+# ggplot() +
+#
+#   geom_sf(data = all_buffers_overlap[[1]][[1]]) +
+#   geom_sf(data = all_buffers_overlap[[2]][[1]]) +
+#   geom_sf(data = all_buffers_overlap[[3]][[1]]) +
+#
+#   geom_sf(data = world_landscape, fill = NA,
+#           linetype = "dotted") +
+#   theme_blank_background()
+
 
 ggplot() +
   geom_sf(data = all_buffers_overlap %>%
-            flatten() %>%
-            bind_rows(),
+            flatten() %>% bind_rows(),
           aes(color = label),
           fill = NA) +
   geom_sf(data = world_landscape, fill = NA,
@@ -146,7 +175,7 @@ ggplot() +
 
 all_buffers_overlap_map <-
   all_buffers_overlap %>%
-  map(. %>% disEpiODE:::create_buffer_overlap_map()) %>%
+  map(. %>% create_buffer_overlap_map()) %>%
   flatten()
 
 source_overlap <- all_buffers_overlap_map$source
@@ -182,51 +211,18 @@ dist_grid <- st_distance(st_centroid(grid$geometry))
 isSymmetric(dist_grid)
 beta_mat_exp <- beta_baseline * exp(-dist_grid)
 
-
-# beta_mat_inverse <- beta_baseline / dist_grid
-# diag(beta_mat_inverse) <- beta_baseline
-#
-# stopifnot(all(is.finite(beta_mat_inverse)))
-
 half_normal_kernel(0) # should be 1
 # dist_grid_half_normal <- dist_grid
 # diag(dist_grid_half_normal) <- 0
 beta_mat_half_normal <- beta_baseline * half_normal_kernel(dist_grid) / half_normal_kernel(0)
 # diag(beta_mat_half_normal) <- beta_baseline
-diag(beta_mat_half_normal) %>% unique()
+diag(beta_mat_half_normal) %>% unique() %>% {
+  stopifnot(isTRUE(all.equal(., beta_baseline)))
+}
 
 stopifnot(all(is.finite(beta_mat_half_normal)))
 
-# # dist_grid_sqrt <- dist_grid
-# # range(dist_grid_sqrt)
-# # diag(dist_grid_sqrt) <- 1
-# beta_mat_sqrt <- beta_baseline / sqrt(dist_grid)
-# # diag(beta_mat_sqrt) <- 1 # WRONG
-# diag(beta_mat_sqrt) <- beta_baseline
-# range(beta_mat_sqrt)
-#
-# # hist(beta_mat_sqrt)
-# stopifnot(all(is.finite(beta_mat_sqrt)))
-
-
-
-# normal_half_normal <- function(x) {
-#   # see 020_plotting_distance_kernel
-#   2 *
-#     dnorm(x,
-#           sd = disEpiODE:::half_normal_sd(mean = 0.6366252),
-#           mean = 0)
-# }
-
-# normal_half_normal(0) # is almost one.
-
-# beta_mat_norm_half_normal <- beta_baseline * normal_half_normal(dist_grid)
-#
-# stopifnot(all(is.finite(beta_mat_norm_half_normal)))
-
-# diag(beta_mat) <- diag(beta_mat) / grid_area[1]
-#'
-#'
+#' ## Transmission kernels
 
 beta_mat_list <- list(
   beta_mat_exp = beta_mat_exp,
@@ -237,9 +233,10 @@ imap(
   beta_mat_list, \(beta_mat, beta_mat_name) {
 
     #'
-    disEpiODE:::create_si_model(grid, beta_mat, y_init,
-                                target_overlap, middle_overlap) ->
+    create_si_model(grid, beta_mat, y_init,
+                    target_overlap, middle_overlap) ->
       model_output
+    #'
     #'
     #'
     stopifnot(
@@ -263,20 +260,36 @@ imap(
     prevalence_throughout %>% head()
     #'
     #' Population prevalence throughout
-    prevalence_throughout %>%
+    p_prev_throughout <- prevalence_throughout %>%
       as_tibble() %>%
-      pivot_longer(starts_with("prevalence_"),
-                   names_to = c(NA, "prevalence_name"),
-                   names_sep = "_") %>%
+      pivot_longer(
+        starts_with("prevalence_"),
+        names_to = c(NA, "prevalence_name"),
+        names_sep = "_"
+      ) %>%
+      mutate(prevalence_name = factor(prevalence_name, c("target", "population", "middle"))) %>%
+      # glimpse() %>%
       ggplot() +
       aes(time, value, group = prevalence_name) +
       geom_line(aes(color = prevalence_name)) +
-      lims(y = c(0, 0.5)) +
+      geom_hline(
+        aes(yintercept = 0.5),
+        data = tibble(prevalence_name = factor("target"))
+        # data = subset(., prevalence_name == "target")
+        # data = filter(., browser(), prevalence_name == "target")
+      ) +
+      labs(y = NULL) +
+      facet_wrap( ~ prevalence_name) +
+      theme(strip.text = element_text(size = 20)) +
+      # lims(y = c(0, 0.5)) +
       theme_blank_background() +
-      theme(legend.position = "bottom") +
-      labs(caption = glue("{n}"))
+      # theme(legend.position = "bottom") +
+      theme(legend.position = "none") +
+      labs(caption = glue(
+        "cellarea = {cellarea}, celltype = {celltype}"))
+    print(p_prev_throughout)
     #'
-    #'
+    # browser()
     #'
     I_grid <-
       model_output$tau_model_output[2, (nrow(grid) + 2):(2 * nrow(grid) + 1)] %>%
@@ -302,15 +315,31 @@ imap(
               # filter(id %in% target_overlap$id_overlap),
               aes(fill = prev)) +
 
+
       geom_sf(data = all_buffers,
               fill = NA,
-              aes(color = label, geometry = buffer_polygon)) +
+              # aes(geometry = st_buffer(buffer_polygon, dist = 0.1)),
+              aes(geometry = buffer_polygon),
+
+              linewidth = 2,
+              alpha = 0.5,
+              color = "white"
+              ) +
+
+      geom_sf(data = all_buffers,
+              fill = NA,
+              aes(color = label, geometry = buffer_polygon),
+              linewidth = 1
+              ) +
 
       scale_fill_viridis_c() +
-      theme(legend.position = "bottom") +
+      theme(legend.position = "none") +
+      labs(caption = "At time = tau") +
+      # theme(legend.position = "bottom") +
       theme_blank_background()
     #'
-    p_prevalence_at_Tau
+    print(p_prevalence_at_Tau)
+    # browser()
     ggsave(
       plot = p_prevalence_at_Tau,
       filename =

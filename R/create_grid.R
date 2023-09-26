@@ -120,6 +120,23 @@ create_grid <- function(landscape, cellarea,
   st_geometry(grid) <- "geometry"
   grid$area <- st_area(grid$geometry)
 
+  # TODO: grid boundary?
+  # grid_is_boundary <-
+  #   st_touches(grid, st_boundary(landscape), sparse = TRUE) %>%
+
+  #   lengths() %>%
+  #   magrittr::is_greater_than(0) %>%
+  #   which() %>%
+
+  #   identity()
+
+  # grid <- magrittr::set_attributes(
+  #   grid, append(
+  #     attributes(grid),
+  #     list(is_boundary = grid_is_boundary)
+  #   )
+  # )
+
   # DEBUG PLOT
   # ggplot() +
   #   geom_sf(data = grid, fill = NA) +
@@ -135,3 +152,4 @@ create_grid <- function(landscape, cellarea,
   grid
 }
 
+# CONCLUSION: For now, this doesn't work with triangles
