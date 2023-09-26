@@ -30,8 +30,12 @@ half_normal_sd <- function(mean) {
 #' @export
 #'
 #' @examples
-half_normal_kernel <- function(x, mean = 1) {
+half_normal_kernel <- function(x, mean = 1, location = 0) {
   (x >= 0) *
     2 *
-    dnorm(x, sd = half_normal_sd(mean = mean), mean = 0)
+    dnorm(x, sd = half_normal_sd(mean = mean), mean = location)
+}
+
+half_normal_param_kernel <- function(x, mean, location, magn) {
+  magn * half_normal_kernel(x, mean = mean, location = location)
 }
