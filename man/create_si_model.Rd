@@ -10,6 +10,7 @@ create_si_model(
   y_init,
   target_overlap,
   middle_overlap,
+  hmax = 0,
   verbose = TRUE
 )
 }

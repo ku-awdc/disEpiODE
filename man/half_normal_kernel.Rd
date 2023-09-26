@@ -4,7 +4,7 @@
 \alias{half_normal_kernel}
 \title{Density for the half-normal distribution}
 \usage{
-half_normal_kernel(x, mean = 1)
+half_normal_kernel(x, mean = 1, location = 0)
 }
 \arguments{
 \item{x}{Numeric vector}

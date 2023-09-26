@@ -36,6 +36,17 @@ half_normal_kernel <- function(x, mean = 1, location = 0) {
     dnorm(x, sd = half_normal_sd(mean = mean), mean = location)
 }
 
+#' Title
+#'
+#' @param x
+#' @param mean
+#' @param location
+#' @param magn Magnitude
+#'
+#' @return
+#' @export
+#'
+#' @examples
 half_normal_param_kernel <- function(x, mean, location, magn) {
   magn * half_normal_kernel(x, mean = mean, location = location)
 }
