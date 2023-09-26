@@ -9,7 +9,6 @@ devtools::load_all()
 
 tag <- "043" # REMEMBER TO SET THIS
 world_scale <- 29
-hmax <- 0.3 / 2
 params1 <- tidyr::expand_grid(
   world_scale = world_scale,
   beta_baseline = c(0.05),
@@ -20,11 +19,12 @@ params1 <- tidyr::expand_grid(
   celltype = c("square", "hexagon", "triangle"),
   # offset = "corner",
   # offset = c("corner", "middle", "bottom", "left"), #TODO
+  hmax = c(NA, 0.3, 0.3 / 2, 0.3 / 2 / 2),
 ) %>%
   # dplyr::sample_n(size = dplyr::n()) %>%
   identity()
 
-pmap(params1, \(world_scale, beta_baseline, buffer_offset_percent, buffer_radius, cellarea, celltype) {
+pmap(params1, \(world_scale, beta_baseline, buffer_offset_percent, buffer_radius, cellarea, celltype, hmax) {
 
   source_target <-
     get_buffer_source_target(landscape_width = world_scale,
@@ -118,13 +118,13 @@ pmap(params1, \(world_scale, beta_baseline, buffer_offset_percent, buffer_radius
     y = y_init,
     parms = parameter_list,
     func = model_func,
-    ynames = FALSE
+    ynames = FALSE,
+    hmax = if (is.na(hmax)) { NULL } else { hmax }
   )
   tau_model_output <-
     rlang::exec(deSolve::ode,
                 !!!ode_parameters,
                 rootfunc = find_target_prevalence,
-                hmax = hmax,
                 times = c(0, Inf))
   rstate <- deSolve::diagnostics(tau_model_output)$rstate
   #TODO: check if tau exists
@@ -148,16 +148,37 @@ tau_df <- params1 %>%
 tau_df %>%
   glimpse()
 
+hmax_legend <- paste(Delta, " ", t[max]) %>% expression()
 tau_df %>%
+  mutate(hmax_label = replace_na(as.character(hmax), "auto")) %>%
   ggplot() +
-  aes(cellarea, tau, group = celltype) +
+  aes(cellarea, tau, group = str_c(celltype, hmax)) +
+    # geom_step(aes(linetype = hmax)) +
+    geom_step(aes(color = celltype)) +
   scale_x_log10_rev() +
-  geom_step()+
+  theme_reverse_arrow_x() +
+  theme(legend.position = "bottom") +
+  facet_wrap(~hmax_label, labeller = label_both) +
+  labs(linetype = hmax_legend) +
   theme_blank_background()
 
-tau_df %>%
+p_rstate_base <- tau_df %>%
   ggplot() +
-  aes(cellarea, rstate_1, group = celltype) +
-  scale_x_log10_rev() +
-  geom_step()+
+  aes(cellarea, group = str_c(celltype, hmax)) +
+  geom_step(aes(color = factor(hmax))) +
+  # scale_x_log10_rev() +
+  # expand_limits(y = 0) +
+  labs(color = expression(paste(Delta, " ", t[max]))) +
+  # theme_reverse_arrow_x() +
   theme_blank_background()
+p_rstate_base +
+  aes(y = rstate_1)
+p_rstate_base +
+  aes(y = rstate_2)
+p_rstate_base +
+  aes(y = rstate_3)
+p_rstate_base +
+  aes(y = rstate_4)
+p_rstate_base +
+  aes(y = rstate_5)
+
