@@ -19,7 +19,11 @@ params1 <- tidyr::expand_grid(
   beta_baseline = c(0.05),
   buffer_offset_percent = 0.2,
   buffer_radius = 3.5,
-  cellarea = seq_cellarea(n = 50, min_cellarea = 0.45, max_cellarea = min(10, world_scale)),
+  cellarea = c(
+    0.25, # 29** 2 / 0.20 = 4205
+    # seq_cellarea(n = 50, min_cellarea = 0.45, max_cellarea = world_scale)
+    seq_cellarea(n = 75, min_cellarea = 0.45, max_cellarea = world_scale)
+  ),
   # celltype = c("square", "hexagon", "hexagon_rot", "triangle"),
   celltype = c("square", "hexagon", "triangle"),
   # offset = "corner",
@@ -116,10 +120,10 @@ future_pmap(params1, .progress = TRUE,
 
               # dist_grid_half_normal <- dist_grid
               # diag(dist_grid_half_normal) <- 0
-              # beta_mat_half_normal <- beta_baseline *
-              #   half_normal_kernel(dist_grid) / half_normal_kernel(0)
               beta_mat_half_normal <- beta_baseline *
-                half_normal_param_kernel(dist_grid, 1.312475, -1.560466, 3.233037)
+                half_normal_kernel(dist_grid) / half_normal_kernel(0)
+              # beta_mat_half_normal <- beta_baseline *
+              #   half_normal_param_kernel(dist_grid, 1.312475, -1.560466, 3.233037)
               # diag(beta_mat_half_normal) <- beta_baseline
 
               # this test fails, but
@@ -138,10 +142,7 @@ future_pmap(params1, .progress = TRUE,
               #   model_output
               #
               n_grid <- nrow(grid)
-              #FIXME: currently, the beta_mat_exp is not being used
-              beta_mat <- beta_mat_half_normal
               parameter_list <- list(
-                # beta_mat = beta_mat,
                 N = n_grid,
                 carry = grid$carry,
                 area = grid$area,
@@ -154,8 +155,7 @@ future_pmap(params1, .progress = TRUE,
                 verbose = FALSE,
                 y = y_init,
                 func = disEpiODE:::model_func,
-                ynames = FALSE,
-                hmax = if (is.na(hmax)) { NULL } else { hmax }
+                ynames = FALSE
               )
               tau_model_output_exp <-
                 rlang::exec(deSolve::ode,
@@ -163,6 +163,7 @@ future_pmap(params1, .progress = TRUE,
                             parms = parameter_list %>% append(list(
                               beta_mat = beta_mat_exp
                             )),
+                            hmax = if (is.na(hmax)) { NULL } else { hmax },
                             rootfunc = disEpiODE:::find_target_prevalence,
                             times = c(0, Inf))
               rstate_exp <- deSolve::diagnostics(tau_model_output_exp)$rstate
@@ -173,13 +174,16 @@ future_pmap(params1, .progress = TRUE,
                             parms = parameter_list %>% append(list(
                               beta_mat = beta_mat_half_normal
                             )),
+                            hmax = if (is.na(hmax)) { NULL } else { hmax },
                             rootfunc = disEpiODE:::find_target_prevalence,
                             times = c(0, Inf))
               rstate_half_normal <- deSolve::diagnostics(tau_model_output_half_normal)$rstate
               tau_half_normal <- tau_model_output_half_normal[2, 1]
+              #TODO: Note that `hmax` is separate here for the other two
               tau_model_output_inverse <-
                 rlang::exec(deSolve::ode,
                             !!!ode_parameters,
+                            hmax = 0.040,
                             parms = parameter_list %>% append(list(
                               beta_mat = beta_mat_inverse
                             )),
@@ -254,35 +258,43 @@ model_output_df %>%
   )
 
 model_output_df %>%
-  ggplot() +
-  aes(cellarea, group = str_c(celltype, hmax)) +
-  geom_step(aes(color = factor(hmax))) +
-  # scale_x_log10_rev() +
-  # expand_limits(y = 0) +
-  labs(color = expression(paste(Delta, " ", t[max]))) +
-  # theme_reverse_arrow_x() +
-  theme_blank_background()
+  mutate(hmax_label = replace_na(as.character(hmax), "auto")) %>%
+  glimpse() %>%
+  group_by(beta_mat) %>%
+  group_map(\(data, group_id) {
+    ggplot(data) +
+      aes(cellarea, group = str_c(celltype, hmax)) +
+      aes(y=rstate_1) +
+      geom_step(aes(color = factor(hmax))) +
+      # scale_x_log10_rev() +
+      # expand_limits(y = 0) +
+      labs(linetype = hmax_legend,
+           caption = glue("beta_mat: {group_id}")) +
+      # theme_reverse_arrow_x() +
+      theme_blank_background()
+  })
 
-p_rstate_base <- tau_df %>%
-  ggplot() +
-  aes(cellarea, group = str_c(celltype, hmax)) +
-  geom_step(aes(color = factor(hmax))) +
-  # scale_x_log10_rev() +
-  # expand_limits(y = 0) +
-  labs(color = expression(paste(Delta, " ", t[max]))) +
-  # theme_reverse_arrow_x() +
-  theme_blank_background()
-#'
-#'
-#' Auxillary plots: Are there more information in`rstate`?
-p_rstate_base +
-  aes(y = rstate_1)
-p_rstate_base +
-  aes(y = rstate_2)
-p_rstate_base +
-  aes(y = rstate_3)
-p_rstate_base +
-  aes(y = rstate_4)
-p_rstate_base +
-  aes(y = rstate_5)
+# NEEDS TO BE ADJUSTED
+#' p_rstate_base <- tau_df %>%
+#'   ggplot() +
+#'   aes(cellarea, group = str_c(celltype, hmax)) +
+#'   geom_step(aes(color = factor(hmax))) +
+#'   # scale_x_log10_rev() +
+#'   # expand_limits(y = 0) +
+#'   labs(color = expression(paste(Delta, " ", t[max]))) +
+#'   # theme_reverse_arrow_x() +
+#'   theme_blank_background()
+#' #'
+#' #'
+#' #' Auxillary plots: Are there more information in`rstate`?
+#' p_rstate_base +
+#'   aes(y = rstate_1)
+#' p_rstate_base +
+#'   aes(y = rstate_2)
+#' p_rstate_base +
+#'   aes(y = rstate_3)
+#' p_rstate_base +
+#'   aes(y = rstate_4)
+#' p_rstate_base +
+#'   aes(y = rstate_5)
 
