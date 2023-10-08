@@ -1,15 +1,3 @@
-
-
-library(magrittr)
-library(conflicted)
-
-
-library(tidyverse)
-library(sf)
-
-devtools::load_all()
-
-
 world <- create_landscape(4)
 world$landscape -> world_landscape
 

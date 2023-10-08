@@ -1,15 +1,3 @@
-
-
-library(magrittr)
-library(conflicted)
-
-
-library(tidyverse)
-library(sf)
-
-devtools::load_all()
-
-
 world <- create_landscape(world_scale <- 4)
 world$landscape -> world_landscape
 # cellarea <- 1
