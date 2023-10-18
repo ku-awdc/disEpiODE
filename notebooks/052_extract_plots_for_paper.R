@@ -26,8 +26,16 @@ params1 <- tidyr::expand_grid(
     # seq.default(0.20, 2.5, length.out = 3) %>% rev(),
     # seq_cellarea(n = 50, min_cellarea = 0.45, max_cellarea = world_scale)
     # seq_cellarea(n = 75, min_cellarea = 0.45, max_cellarea = world_scale)
-    seq_cellarea(n = 50 + 25, min_cellarea = 2.5, max_cellarea = world_scale)
+    seq_cellarea(n = 50 + 25 + 25, min_cellarea = 2.5, max_cellarea = world_scale)
   ) %>%
+  # cellarea = c(
+  #   # 0.25, # 29** 2 / 0.20 = 4205
+  #   seq.default(0.25, 2.5, length.out = 4) %>% head(-1),
+  #   # seq.default(0.20, 2.5, length.out = 3) %>% rev(),
+  #   # seq_cellarea(n = 50, min_cellarea = 0.45, max_cellarea = world_scale)
+  #   # seq_cellarea(n = 75, min_cellarea = 0.45, max_cellarea = world_scale)
+  #   seq_cellarea(n = 50 + 25 + 25, min_cellarea = 2.5, max_cellarea = world_scale)
+  # ) %>%
     zapsmall() %>%
     unique(),
   # celltype = c("square", "hexagon", "hexagon_rot", "triangle"),
@@ -42,7 +50,7 @@ params1 <- tidyr::expand_grid(
   identity()
 
 beta_mat_list <- c("inverse", "half_normal", "exp")
-beta_mat_list <- c("half_normal")
+# beta_mat_list <- c("half_normal")
 
 #TODO: make into a list that errors if accessing an undefined element
 hmax_list <- list(
@@ -253,9 +261,18 @@ model_output_df %>%
       geom_step(aes(color = interaction(celltype))) +
       labs(color = "Shape") +
 
+      # ggplot2::sec_axis()
+
       scale_x_log10_rev() +
       theme_reverse_arrow_x() +
       theme_blank_background() +
+      theme(text = element_text(size = 20)) +
+      theme(strip.text = element_text(size = 15),
+            legend.title = element_text(size = 15),
+            legend.background = element_blank(),
+            legend.text = element_text(size = 12)) +
+      guides(color = guide_legend(override.aes = list(linewidth = 2))) +
+
 
       labs(caption = "Kernel form: {group_id}" %>% glue()) +
 
