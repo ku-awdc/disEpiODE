@@ -21,11 +21,15 @@ params1 <- tidyr::expand_grid(
   buffer_offset_percent = 0.2,
   buffer_radius = 3.5,
   cellarea = c(
-    0.25, # 29** 2 / 0.20 = 4205
+    # 0.25, # 29** 2 / 0.20 = 4205
+    seq.default(0.25, 2.5, length.out = 4) %>% head(-1),
+    # seq.default(0.20, 2.5, length.out = 3) %>% rev(),
     # seq_cellarea(n = 50, min_cellarea = 0.45, max_cellarea = world_scale)
     # seq_cellarea(n = 75, min_cellarea = 0.45, max_cellarea = world_scale)
-    seq_cellarea(n = 50, min_cellarea = 3, max_cellarea = world_scale)
-  ),
+    seq_cellarea(n = 50 + 25, min_cellarea = 2.5, max_cellarea = world_scale)
+  ) %>%
+    zapsmall() %>%
+    unique(),
   # celltype = c("square", "hexagon", "hexagon_rot", "triangle"),
   celltype = c("square", "hexagon", "triangle"),
   # offset = "corner",
@@ -37,11 +41,16 @@ params1 <- tidyr::expand_grid(
   # dplyr::sample_n(size = dplyr::n()) %>%
   identity()
 
+beta_mat_list <- c("inverse", "half_normal", "exp")
+beta_mat_list <- c("half_normal")
+
 #TODO: make into a list that errors if accessing an undefined element
 hmax_list <- list(
   inverse = 0.0370,
-  exp = 0.115,
-  half_normal = 0.144
+  # exp = 0.115,
+  exp = 0.100,
+  # half_normal = 0.144
+  half_normal = 0.100
 )
 
 # pmap(params1,
@@ -105,47 +114,10 @@ future_pmap(params1, .progress = TRUE,
                   source_overlap$id_overlap
               ] <- +half_infected_mass
 
+
+              # distance of the grid cells...
+              all_beta_mat <- list()
               dist_grid <- st_distance(st_centroid(grid$geometry))
-              # VALIDATION
-              # isSymmetric(dist_grid)
-
-              # kernel(d) = 1 / (1 + d)
-              beta_mat_inverse <- beta_baseline * (1/(1 + dist_grid))
-              stopifnot(all(is.finite(beta_mat_inverse)))
-              diag(beta_mat_inverse) %>% unique() %>% {
-                stopifnot(isTRUE(all.equal(., beta_baseline)))
-              }
-
-
-              # kernel(d) = exp(-d)
-
-              beta_mat_exp <- beta_baseline * exp(-dist_grid)
-
-              stopifnot(all(is.finite(beta_mat_exp)))
-              diag(beta_mat_exp) %>% unique() %>% {
-                stopifnot(isTRUE(all.equal(., beta_baseline)))
-              }
-
-              # kernel(d) = 2×pdf(mean = 0, sd = mean_formula(1))
-
-              # dist_grid_half_normal <- dist_grid
-              # diag(dist_grid_half_normal) <- 0
-              beta_mat_half_normal <- beta_baseline *
-                half_normal_kernel(dist_grid) / half_normal_kernel(0)
-              # beta_mat_half_normal <- beta_baseline *
-              #   half_normal_param_kernel(dist_grid, 1.312475, -1.560466, 3.233037)
-              # diag(beta_mat_half_normal) <- beta_baseline
-
-              # this test fails, but
-              # > half_normal_param_kernel(0, 1.312475, -1.560466, 3.233037)
-              # [1] 0.9999617
-              # and it should exactly 1
-              #
-              # diag(beta_mat_half_normal) %>% unique() %>% {
-              #   stopifnot(isTRUE(all.equal(., beta_baseline)))
-              # }
-              stopifnot(all(is.finite(beta_mat_half_normal)))
-
 
               # create_si_model(grid, beta_mat, y_init,
               #                 target_overlap, middle_overlap) ->
@@ -167,56 +139,87 @@ future_pmap(params1, .progress = TRUE,
                 func = disEpiODE:::model_func,
                 ynames = FALSE
               )
-              tau_model_output_exp <-
-                rlang::exec(deSolve::ode,
-                            !!!ode_parameters,
-                            parms = parameter_list %>% append(list(
-                              beta_mat = beta_mat_exp
-                            )),
-                            hmax = na_as_null(hmax_list$exp),
-                            rootfunc = disEpiODE:::find_target_prevalence,
-                            times = c(0, Inf))
-              rstate_exp <- deSolve::diagnostics(tau_model_output_exp)$rstate
-              tau_exp <- tau_model_output_exp[2, 1]
-              tau_model_output_half_normal <-
-                rlang::exec(deSolve::ode,
-                            !!!ode_parameters,
-                            parms = parameter_list %>% append(list(
-                              beta_mat = beta_mat_half_normal
-                            )),
-                            hmax = na_as_null(hmax_list$half_normal),
-                            rootfunc = disEpiODE:::find_target_prevalence,
-                            times = c(0, Inf))
-              rstate_half_normal <- deSolve::diagnostics(tau_model_output_half_normal)$rstate
-              tau_half_normal <- tau_model_output_half_normal[2, 1]
-              #TODO: Note that `hmax` is separate here for the other two
-              tau_model_output_inverse <-
-                rlang::exec(deSolve::ode,
-                            !!!ode_parameters,
-                            # hmax = 0.040,
-                            hmax = na_as_null(hmax_list$inverse),
-                            parms = parameter_list %>% append(list(
-                              beta_mat = beta_mat_inverse
-                            )),
-                            rootfunc = disEpiODE:::find_target_prevalence,
-                            times = c(0, Inf))
-              rstate_inverse <- deSolve::diagnostics(tau_model_output_inverse)$rstate
-              #TODO: check if tau exists
-              tau_inverse <- tau_model_output_inverse[2, 1]
-              list(
-                output_inverse = list(
-                  tau = tau_inverse,
-                  rstate = rstate_inverse
-                ),
-                output_exp = list(
-                  tau = tau_exp,
-                  rstate = rstate_exp
-                ),
-                output_half_normal = list(
-                  tau = tau_half_normal,
-                  rstate = rstate_half_normal
-                )
-              )
+
+              # region: exp
+
+              # kernel(d) = exp(-d)
+
+              beta_mat_exp <- beta_baseline * exp(-dist_grid)
+
+              stopifnot(all(is.finite(beta_mat_exp)))
+              diag(beta_mat_exp) %>% unique() %>% {
+                stopifnot(isTRUE(all.equal(., beta_baseline)))
+              }
+              all_beta_mat$exp <- beta_mat_exp
+
+              # endregion
+
+              # region: half-normal
+
+              # kernel(d) = 2×pdf(mean = 0, sd = mean_formula(1))
+
+              # dist_grid_half_normal <- dist_grid
+              # diag(dist_grid_half_normal) <- 0
+              beta_mat_half_normal <- beta_baseline *
+                half_normal_kernel(dist_grid) / half_normal_kernel(0)
+              # beta_mat_half_normal <- beta_baseline *
+              #   half_normal_param_kernel(dist_grid, 1.312475, -1.560466, 3.233037)
+              # diag(beta_mat_half_normal) <- beta_baseline
+
+              # this test fails, but
+              # > half_normal_param_kernel(0, 1.312475, -1.560466, 3.233037)
+              # [1] 0.9999617
+              # and it should exactly 1
+              #
+              # diag(beta_mat_half_normal) %>% unique() %>% {
+              #   stopifnot(isTRUE(all.equal(., beta_baseline)))
+              # }
+              stopifnot(all(is.finite(beta_mat_half_normal)))
+              all_beta_mat$half_normal <- beta_mat_half_normal
+
+
+              # endregion
+
+
+              # region: inverse
+
+              # VALIDATION
+              # isSymmetric(dist_grid)
+
+              # kernel(d) = 1 / (1 + d)
+              beta_mat_inverse <- beta_baseline * (1/(1 + dist_grid))
+              stopifnot(all(is.finite(beta_mat_inverse)))
+              diag(beta_mat_inverse) %>% unique() %>% {
+                stopifnot(isTRUE(all.equal(., beta_baseline)))
+              }
+              all_beta_mat$inverse <- beta_mat_inverse
+
+              #FIXME: all the `beta_mat`s are being calculated even if they
+              # are not needed 🤷
+
+              # endregion
+              result <- list()
+
+              for (beta_mat_name in beta_mat_list) {
+                #TODO: Note that `hmax` is separate here for the other two
+                tau_model_output <-
+                  rlang::exec(deSolve::ode,
+                              !!!ode_parameters,
+                              # hmax = 0.040,
+                              hmax = na_as_null(hmax_list[[beta_mat_name]]),
+                              parms = parameter_list %>% append(list(
+                                beta_mat = all_beta_mat[[beta_mat_name]]
+                              )),
+                              rootfunc = disEpiODE:::find_target_prevalence,
+                              times = c(0, Inf))
+                output <- list()
+                output$rstate <- deSolve::diagnostics(tau_model_output)$rstate
+                #TODO: check if tau exists
+                output$tau <- tau_model_output[2, 1]
+                result[[glue("output_{beta_mat_name}")]] <- output
+              }
+
+              result
             }) ->
   #TODO: rename this
   tau_rstate
@@ -248,6 +251,7 @@ model_output_df %>%
     ggplot(data) +
       aes(cellarea, tau, group = str_c(celltype)) +
       geom_step(aes(color = interaction(celltype))) +
+      labs(color = "Shape") +
 
       scale_x_log10_rev() +
       theme_reverse_arrow_x() +
@@ -268,7 +272,7 @@ model_output_df %>%
 model_output_df %>%
   summarise(observed = min(hlast), .by = beta_mat) %>%
   mutate(config = beta_mat %>%
-           map_chr(. %>% `[[`(hmax_list, .) %>% null_as_na()),
+           map_chr(. %>% `[[`(hmax_list, .) %>% null_as_na() %>% as.character()),
          config = replace_na(config, "auto")) %>%
   identity()
 
@@ -276,22 +280,22 @@ model_output_df %>%
   glimpse()
 
 
-model_output_df %>%
-  # mutate(hmax_label = replace_na(as.character(hmax), "auto")) %>%
-  glimpse() %>%
-  group_by(beta_mat) %>%
-  group_map(\(data, group_id) {
-    ggplot(data) +
-      aes(cellarea, group = str_c(celltype)) +
-      aes(y=rstate_1) +
-      geom_step(aes(color = output_id))+
-      # scale_x_log10_rev() +
-      # expand_limits(y = 0) +
-      labs(linetype = hmax_legend,
-           caption = glue("beta_mat: {group_id}")) +
-      # theme_reverse_arrow_x() +
-      theme_blank_background()
-  })
+# model_output_df %>%
+#   # mutate(hmax_label = replace_na(as.character(hmax), "auto")) %>%
+#   glimpse() %>%
+#   group_by(beta_mat) %>%
+#   group_map(\(data, group_id) {
+#     ggplot(data) +
+#       aes(cellarea, group = str_c(celltype)) +
+#       aes(y=rstate_1) +
+#       geom_step(aes(color = output_id)) +
+#       # scale_x_log10_rev() +
+#       # expand_limits(y = 0) +
+#       labs(linetype = hmax_legend,
+#            caption = glue("beta_mat: {group_id}")) +
+#       # theme_reverse_arrow_x() +
+#       theme_blank_background()
+#   })
 
 # NEEDS TO BE ADJUSTED
 #' p_rstate_base <- tau_df %>%
