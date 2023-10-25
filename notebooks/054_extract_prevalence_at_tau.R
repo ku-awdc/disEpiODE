@@ -247,11 +247,9 @@ future_pmap(params1, .progress = TRUE,
               result <- list()
 
               for (beta_mat_name in beta_mat_list) {
-                #TODO: Note that `hmax` is separate here for the other two
                 tau_model_output <-
                   rlang::exec(deSolve::ode,
                               !!!ode_parameters,
-                              # hmax = 0.040,
                               hmax = na_as_null(hmax_list[[beta_mat_name]]),
                               parms = parameter_list %>% append(list(
                                 beta_mat = all_beta_mat[[beta_mat_name]]
@@ -263,12 +261,17 @@ future_pmap(params1, .progress = TRUE,
                 #TODO: check if tau exists
                 output$tau <- tau_model_output[2, 1]
                 result[[glue("output_{beta_mat_name}")]] <- output
+
+
               }
 
               result
             }) ->
   #TODO: rename this
   tau_rstate
+
+tau_rstate %>%
+  glimpse(max.level = 2)
 
 model_output_df <-
   params1 %>%
