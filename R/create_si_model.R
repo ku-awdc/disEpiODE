@@ -142,10 +142,10 @@ find_target_prevalence <- function(times, y, parameters) {
 
   carry <- parameters$carry
 
-  prevalence_target <- mean(
-    I[target_overlap$id_overlap] * target_overlap$weight /
-      (carry[target_overlap$id_overlap] * target_overlap$weight)
-  )
+  # prevalence_target <- mean(
+  #   I[target_overlap$id_overlap] * target_overlap$weight /
+  #     (carry[target_overlap$id_overlap] * target_overlap$weight)
+  # )
   # mean(I / carry)
   # sum(y_i×w_i) / sum(w_i) #weighted arithmetic mean
   # prevalence_target <- sum(
