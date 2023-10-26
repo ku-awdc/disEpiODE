@@ -263,6 +263,15 @@ future_pmap(params1, .progress = TRUE,
                 result[[glue("output_{beta_mat_name}")]] <- output
 
 
+                prevalence_at_tau <-
+                  tau_model_output[
+                    # choose time = min(tau, Inf)
+                    2,
+                    #first col is time, jump over Ss and Is, prevalences: target (skip), middle, population
+                    (1 + 1 + 2 * length(st_geometry(grid))):ncol(tau_model_output)
+                    ,drop = FALSE]
+
+                result[[glue("output_{beta_mat_name}_prevalence")]] <- prevalence_at_tau
               }
 
               result
