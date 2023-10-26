@@ -8,7 +8,7 @@ if (interactive()) {
 
   # future::availableCores()
   # future::availableWorkers()
-  message("Set the `multisession(workers = 10)`")
-  future::plan(future::multisession(workers = 10))
+  # message("Set the `multisession(workers = 10)`")
+  # future::plan(future::multisession(workers = 10))
 
 }
