@@ -6,6 +6,9 @@
 ## usethis namespace: end
 NULL
 
+#' @importFrom rlang %||%
+NULL
+
 #' Packages that will be assumed to be ubiquitious
 #'
 #' @name imports
