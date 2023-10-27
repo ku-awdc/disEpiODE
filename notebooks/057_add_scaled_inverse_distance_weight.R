@@ -17,6 +17,7 @@ tag <- "043" # REMEMBER TO SET THIS
 world_scale <- 29
 params1 <- tidyr::expand_grid(
   world_scale = world_scale,
+  # beta_baseline = c(0.05),
   beta_baseline = c(0.5),
   buffer_offset_percent = 0.2,
   buffer_radius = 3.5,
@@ -58,10 +59,15 @@ beta_mat_list <- c("inverse", "scaled_inverse", "half_normal", "exp")
 #TODO: make into a list that errors if accessing an undefined element
 hmax_list <- list(
 
-  inverse = 0.003,
-  scaled_inverse = 0.005,
-  half_normal = 0.01,
-  exp = 0.01
+  # inverse = 0.003,
+  # scaled_inverse = 0.005,
+  # half_normal = 0.01,
+  # exp = 0.01
+
+  # inverse = 0.003,
+  # scaled_inverse = 0.005,
+  # half_normal = 0.01,
+  # exp = 0.01
 
   # # use `NULL` for auto
   # # inverse = 0.0370,
@@ -316,6 +322,11 @@ future_pmap(params1, .progress = TRUE,
 tau_rstate %>%
   glimpse(max.level = 2)
 
+# pdf("plots_min_hstep.pdf",
+#     height = 6,
+#     width = 16 / 9 * 6)
+
+
 kernel_levels <- c("inverse", "scaled_inverse", "exp", "half_normal")
 #' Plot tau
 #'
@@ -447,6 +458,7 @@ tau_hfirst_df <- tau_rstate %>%
   identity()
 
 tau_hfirst_df %>%
+  mutate(beta_mat = factor(beta_mat, kernel_levels)) %>%
 
   ggplot() +
   aes(cellarea, hlast, group = str_c(celltype, beta_mat)) +
@@ -471,89 +483,8 @@ tau_hfirst_df %>%
   identity()
 
 
-#'
-#' odel_output_df <-
-#'   params1 %>%
-#'   bind_cols(
-#'     tau_rstate %>% enframe("id", "output")
-#'   ) %>%
-#'   unnest_longer(output) %>%
-#'   mutate(beta_mat = output_id %>%
-#'            str_remove("output_")) %>%
-#'   unnest_wider(output) %>%
-#'   #' just pick out the first `rstate`
-#'   mutate(hlast = rstate %>% map_dbl(`[`(1))) %>%
-#'   unnest_wider(rstate, names_sep = "_") %>%
-#'   # mutate(`hWhat?` = rstate %>% map_dbl(`[`(2))) %>%
-#'   # glimpse() %>%
-#'   # print(width = Inf) %>%
-#'   identity()
-#'
-#'
-#' model_output_df %>%
-#'   glimpse() %>%
-#'
-#'   group_by(beta_mat) %>%
-#'
-#'   group_map(\(data, group_id) {
-#'     ggplot(data) +
-#'       aes(cellarea, tau, group = str_c(celltype)) +
-#'       geom_step(aes(color = interaction(celltype))) +
-#'       labs(color = "Shape") +
-#'
-#'       # ggplot2::sec_axis()
-#'
-#'       scale_x_log10_rev() +
-#'       theme_reverse_arrow_x() +
-#'       theme_blank_background() +
-#'       theme(text = element_text(size = 20)) +
-#'       theme(strip.text = element_text(size = 15),
-#'             legend.title = element_text(size = 15),
-#'             legend.background = element_blank(),
-#'             legend.text = element_text(size = 12)) +
-#'       guides(color = guide_legend(override.aes = list(linewidth = 2))) +
-#'
-#'
-#'       labs(caption = "Kernel form: {group_id}" %>% glue()) +
-#'
-#'       NULL
-#'   })
-#'
-#'
-#'
-#'
-#' #' One could replace the values of `hmax_list` with these;
-#' #' They make sense if the previous runs was based on `hmax = NULL`, i.e. automatic
-#' #' stepsize estimation.
-#' #'
-#' model_output_df %>%
-#'   summarise(observed = min(hlast), .by = beta_mat) %>%
-#'   mutate(config = beta_mat %>%
-#'            map_chr(. %>% `[[`(hmax_list, .) %>% null_as_na() %>% as.character()),
-#'          config = replace_na(config, "auto")) %>%
-#'   identity()
-#'
-#' model_output_df %>%
-#'   glimpse()
-#'
-#'
-#' # model_output_df %>%
-#' #   # mutate(hmax_label = replace_na(as.character(hmax), "auto")) %>%
-#' #   glimpse() %>%
-#' #   group_by(beta_mat) %>%
-#' #   group_map(\(data, group_id) {
-#' #     ggplot(data) +
-#' #       aes(cellarea, group = str_c(celltype)) +
-#' #       aes(y=rstate_1) +
-#' #       geom_step(aes(color = output_id)) +
-#' #       # scale_x_log10_rev() +
-#' #       # expand_limits(y = 0) +
-#' #       labs(linetype = hmax_legend,
-#' #            caption = glue("beta_mat: {group_id}")) +
-#' #       # theme_reverse_arrow_x() +
-#' #       theme_blank_background()
-#' #   })
-#'
+# dev.off()
+
 #' # NEEDS TO BE ADJUSTED
 #' #' p_rstate_base <- tau_df %>%
 #' #'   ggplot() +
