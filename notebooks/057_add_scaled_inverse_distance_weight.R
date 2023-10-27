@@ -17,7 +17,7 @@ tag <- "043" # REMEMBER TO SET THIS
 world_scale <- 29
 params1 <- tidyr::expand_grid(
   world_scale = world_scale,
-  beta_baseline = c(0.05),
+  beta_baseline = c(0.5),
   buffer_offset_percent = 0.2,
   buffer_radius = 3.5,
   cellarea = c(
@@ -57,16 +57,22 @@ beta_mat_list <- c("inverse", "scaled_inverse", "half_normal", "exp")
 #' of tau.
 #TODO: make into a list that errors if accessing an undefined element
 hmax_list <- list(
-  # use `NULL` for auto
-  # inverse = 0.0370,
-  inverse = 0.0192,
 
-  scaled_inverse = 0.05,
+  inverse = 0.003,
+  scaled_inverse = 0.005,
+  half_normal = 0.01,
+  exp = 0.01
 
-  # exp = 0.115,
-  exp = 0.100,
-  # half_normal = 0.144
-  half_normal = 0.100
+  # # use `NULL` for auto
+  # # inverse = 0.0370,
+  # inverse = 0.0192,
+  #
+  # scaled_inverse = 0.05,
+  #
+  # # exp = 0.115,
+  # exp = 0.100,
+  # # half_normal = 0.144
+  # half_normal = 0.100
 )
 
 # pmap(params1,.progress = TRUE,
@@ -100,10 +106,14 @@ future_pmap(params1, .progress = TRUE,
 
               y_init <- c(S = grid$carry,
                           I = numeric(length(grid$carry)))
-              #
+              # browser()
               # THREE APPROACH
-              all_buffers_overlap_map <- st_intersection(y = grid, all_buffers %>% `st_geometry<-`("buffer_polygon")) %>%
-                transmute(label, id_overlap = id, weight = st_area(buffer_polygon) / area) %>%
+
+              all_buffers_overlap_map <-
+                st_intersection(y = grid, all_buffers %>%
+                                  `st_geometry<-`("buffer_polygon")) %>%
+                transmute(label, id_overlap = id,
+                          weight = st_area(buffer_polygon) / buffer_area) %>%
                 st_drop_geometry() %>%
                 # normalize weights
                 # mutate(.by = label, weight = weight / sum(weight)) %>%
@@ -306,6 +316,59 @@ future_pmap(params1, .progress = TRUE,
 tau_rstate %>%
   glimpse(max.level = 2)
 
+kernel_levels <- c("inverse", "scaled_inverse", "exp", "half_normal")
+#' Plot tau
+#'
+tau_rstate %>%
+  enframe() %>%
+  unnest_wider(value) %>%
+  select(name, ends_with("tau")) %>%
+  unnest_wider(ends_with("tau"), names_sep = "_") %>%
+  select(name, ends_with("tau")) %>%
+
+  glimpse() %>%
+
+  bind_cols(params1) %>%
+
+  pivot_longer(
+    ends_with("tau"),
+    names_to = "beta_mat",
+    values_to = c("tau"),
+    names_pattern = "output_(\\w+)_tau_tau"
+  ) %>%
+  mutate(beta_mat = factor(beta_mat, kernel_levels)) %>%
+
+  identity() %>%
+  # print(width = Inf)
+
+  group_by(beta_mat) %>%
+
+  group_map(\(data, group_id) {
+    ggplot(data) +
+      aes(cellarea, tau, group = str_c(celltype)) +
+      geom_step(aes(color = interaction(celltype))) +
+      labs(color = "Shape") +
+
+      # ggplot2::sec_axis()
+
+      scale_x_log10_rev() +
+      theme_reverse_arrow_x() +
+      theme_blank_background() +
+      theme(text = element_text(size = 20)) +
+      theme(strip.text = element_text(size = 15),
+            legend.title = element_text(size = 15),
+            legend.background = element_blank(),
+            legend.text = element_text(size = 12)) +
+      guides(color = guide_legend(override.aes = list(linewidth = 2))) +
+
+
+      labs(caption = "Kernel form: {kernel_levels[group_id %>% pull()]}" %>% glue()) +
+
+      NULL
+  })
+
+
+
 output_prevalence_at_tau <-
   tau_rstate %>%
   enframe("id", "output") %>%
@@ -325,7 +388,6 @@ output_prevalence_at_tau <-
 
   print(width = Inf)
 
-kernel_levels <- c("inverse", "scaled_inverse", "exp", "half_normal")
 
 output_prevalence_at_tau %>%
 
@@ -349,12 +411,18 @@ output_prevalence_at_tau %>%
       geom_step(aes(color = celltype)) +
 
       facet_wrap(~prevalence_level, scales = "free_y") +
+
+      # lims(x = c(4, NA)) +
       # expand_limits(y = 1) +
 
       labs(caption = glue("Kernel {kernel_name}")) +
+      theme(strip.text = element_text(size = 20),
+            text = element_text(size = 20)) +
 
       scale_x_log10_rev() +
+      # scale_x_log10_rev(limits = c(4, NA)) +
       theme_reverse_arrow_x() +
+      # coord_cartesian(ylim = c(NA, 0.52)) +
       theme_blank_background()
   })
 
