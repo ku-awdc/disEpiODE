@@ -301,6 +301,9 @@ output_prevalence_at_tau <-
   select(-ends_with("tau")) %>%
 
   print(width = Inf)
+
+kernel_levels <- c("inverse", "exp", "half_normal")
+
 output_prevalence_at_tau %>%
 
   pivot_longer(
@@ -311,11 +314,12 @@ output_prevalence_at_tau %>%
   ) %>%
 
   identity() %>%
-  mutate(kernel = factor(kernel, c("inverse", "exp", "half_normal"))) %>%
+  mutate(kernel = factor(kernel, kernel_levels)) %>%
   dplyr::filter(prevalence_level != "target") %>%
 
   group_by(kernel)  %>%
   group_map(\(data, kernel) {
+    kernel_name <- kernel_levels[kernel %>% pull()]
     ggplot(data) +
       aes(cellarea, prevalence, group = str_c(kernel, celltype, prevalence_level)) +
 
@@ -324,12 +328,11 @@ output_prevalence_at_tau %>%
       facet_wrap(~prevalence_level, scales = "free_y") +
       expand_limits(y = 1) +
 
-      labs(caption = glue("Kernel {kernel}")) +
+      labs(caption = glue("Kernel {kernel_name}")) +
 
       scale_x_log10_rev() +
       theme_reverse_arrow_x() +
       theme_blank_background()
-
   })
 #'
 #' odel_output_df <-
