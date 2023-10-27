@@ -27,7 +27,7 @@ params1 <- tidyr::expand_grid(
     # seq_cellarea(n = 50, min_cellarea = 0.45, max_cellarea = world_scale)
     # seq_cellarea(n = 75, min_cellarea = 0.45, max_cellarea = world_scale)
     # seq_cellarea(n = 50 + 25 + 25, min_cellarea = 2.5, max_cellarea = world_scale)
-    seq_cellarea(n = 100, min_cellarea = 1, max_cellarea = world_scale)
+    seq_cellarea(n = 150, min_cellarea = 0.5, max_cellarea = world_scale)
   ) %>%
     # cellarea = c(
     #   # 0.25, # 29** 2 / 0.20 = 4205
@@ -260,18 +260,20 @@ future_pmap(params1, .progress = TRUE,
                 output$rstate <- deSolve::diagnostics(tau_model_output)$rstate
                 #TODO: check if tau exists
                 output$tau <- tau_model_output[2, 1]
-                result[[glue("output_{beta_mat_name}")]] <- output
+                result[[glue("output_{beta_mat_name}_tau")]] <- output
 
 
                 prevalence_at_tau <-
                   tau_model_output[
                     # choose time = min(tau, Inf)
                     2,
-                    #first col is time, jump over Ss and Is, prevalences: target (skip), middle, population
+                    #first col is time, jump over Ss and Is,
+                    #prevalences: target, middle, population
                     (1 + 1 + 2 * length(st_geometry(grid))):ncol(tau_model_output)
                     ,drop = FALSE]
 
-                result[[glue("output_{beta_mat_name}_prevalence")]] <- prevalence_at_tau
+                result[[glue("output_{beta_mat_name}_prevalence")]] <-
+                  list(prevalence_at_tau)
               }
 
               result
@@ -282,136 +284,184 @@ future_pmap(params1, .progress = TRUE,
 tau_rstate %>%
   glimpse(max.level = 2)
 
-model_output_df <-
-  params1 %>%
-  bind_cols(
-    tau_rstate %>% enframe("id", "output")
-  ) %>%
-  unnest_longer(output) %>%
-  mutate(beta_mat = output_id %>%
-           str_remove("output_")) %>%
+output_prevalence_at_tau <-
+  tau_rstate %>%
+  enframe("id", "output") %>%
+  bind_cols(params1) %>%
   unnest_wider(output) %>%
-  #' just pick out the first `rstate`
-  mutate(hlast = rstate %>% map_dbl(`[`(1))) %>%
-  unnest_wider(rstate, names_sep = "_") %>%
-  # mutate(`hWhat?` = rstate %>% map_dbl(`[`(2))) %>%
-  # glimpse() %>%
-  # print(width = Inf) %>%
-  identity()
+  unnest(ends_with("prevalence"), names_sep = "_") %>%
+  mutate(across(ends_with("prevalence"),
+                . %>%
+                  do.call(rbind, .) %>%
+                  as_tibble() %>%
+                  rename_with(~str_remove(., "prevalence_"))
+  )) %>%
+  unnest(ends_with("prevalence"), names_sep = "_") %>%
 
+  select(-ends_with("tau")) %>%
 
-model_output_df %>%
-  glimpse() %>%
+  print(width = Inf)
+output_prevalence_at_tau %>%
 
-  group_by(beta_mat) %>%
+  pivot_longer(
+    contains("prevalence"),
+    names_to = c("kernel", "prevalence_level"),
+    names_pattern = "output_(\\w+)_prevalence_(\\w+)",
+    values_to = "prevalence"
+  ) %>%
 
-  group_map(\(data, group_id) {
+  identity() %>%
+  mutate(kernel = factor(kernel, c("inverse", "exp", "half_normal"))) %>%
+  dplyr::filter(prevalence_level != "target") %>%
+
+  group_by(kernel)  %>%
+  group_map(\(data, kernel) {
     ggplot(data) +
-      aes(cellarea, tau, group = str_c(celltype)) +
-      geom_step(aes(color = interaction(celltype))) +
-      labs(color = "Shape") +
+      aes(cellarea, prevalence, group = str_c(kernel, celltype, prevalence_level)) +
 
-      # ggplot2::sec_axis()
+      geom_step(aes(color = celltype)) +
+
+      facet_wrap(~prevalence_level, scales = "free_y") +
+      expand_limits(y = 1) +
+
+      labs(caption = glue("Kernel {kernel}")) +
 
       scale_x_log10_rev() +
       theme_reverse_arrow_x() +
-      theme_blank_background() +
-      theme(text = element_text(size = 20)) +
-      theme(strip.text = element_text(size = 15),
-            legend.title = element_text(size = 15),
-            legend.background = element_blank(),
-            legend.text = element_text(size = 12)) +
-      guides(color = guide_legend(override.aes = list(linewidth = 2))) +
+      theme_blank_background()
 
-
-      labs(caption = "Kernel form: {group_id}" %>% glue()) +
-
-      NULL
   })
-
-
-
-
-#' One could replace the values of `hmax_list` with these;
-#' They make sense if the previous runs was based on `hmax = NULL`, i.e. automatic
-#' stepsize estimation.
 #'
-model_output_df %>%
-  summarise(observed = min(hlast), .by = beta_mat) %>%
-  mutate(config = beta_mat %>%
-           map_chr(. %>% `[[`(hmax_list, .) %>% null_as_na() %>% as.character()),
-         config = replace_na(config, "auto")) %>%
-  identity()
-
-model_output_df %>%
-  glimpse()
-
-
-# model_output_df %>%
-#   # mutate(hmax_label = replace_na(as.character(hmax), "auto")) %>%
-#   glimpse() %>%
-#   group_by(beta_mat) %>%
-#   group_map(\(data, group_id) {
-#     ggplot(data) +
-#       aes(cellarea, group = str_c(celltype)) +
-#       aes(y=rstate_1) +
-#       geom_step(aes(color = output_id)) +
-#       # scale_x_log10_rev() +
-#       # expand_limits(y = 0) +
-#       labs(linetype = hmax_legend,
-#            caption = glue("beta_mat: {group_id}")) +
-#       # theme_reverse_arrow_x() +
-#       theme_blank_background()
-#   })
-
-# NEEDS TO BE ADJUSTED
-#' p_rstate_base <- tau_df %>%
-#'   ggplot() +
-#'   aes(cellarea, group = str_c(celltype, hmax)) +
-#'   geom_step(aes(color = factor(hmax))) +
-#'   # scale_x_log10_rev() +
-#'   # expand_limits(y = 0) +
-#'   labs(color = expression(paste(Delta, " ", t[max]))) +
-#'   # theme_reverse_arrow_x() +
-#'   theme_blank_background()
+#' odel_output_df <-
+#'   params1 %>%
+#'   bind_cols(
+#'     tau_rstate %>% enframe("id", "output")
+#'   ) %>%
+#'   unnest_longer(output) %>%
+#'   mutate(beta_mat = output_id %>%
+#'            str_remove("output_")) %>%
+#'   unnest_wider(output) %>%
+#'   #' just pick out the first `rstate`
+#'   mutate(hlast = rstate %>% map_dbl(`[`(1))) %>%
+#'   unnest_wider(rstate, names_sep = "_") %>%
+#'   # mutate(`hWhat?` = rstate %>% map_dbl(`[`(2))) %>%
+#'   # glimpse() %>%
+#'   # print(width = Inf) %>%
+#'   identity()
+#'
+#'
+#' model_output_df %>%
+#'   glimpse() %>%
+#'
+#'   group_by(beta_mat) %>%
+#'
+#'   group_map(\(data, group_id) {
+#'     ggplot(data) +
+#'       aes(cellarea, tau, group = str_c(celltype)) +
+#'       geom_step(aes(color = interaction(celltype))) +
+#'       labs(color = "Shape") +
+#'
+#'       # ggplot2::sec_axis()
+#'
+#'       scale_x_log10_rev() +
+#'       theme_reverse_arrow_x() +
+#'       theme_blank_background() +
+#'       theme(text = element_text(size = 20)) +
+#'       theme(strip.text = element_text(size = 15),
+#'             legend.title = element_text(size = 15),
+#'             legend.background = element_blank(),
+#'             legend.text = element_text(size = 12)) +
+#'       guides(color = guide_legend(override.aes = list(linewidth = 2))) +
+#'
+#'
+#'       labs(caption = "Kernel form: {group_id}" %>% glue()) +
+#'
+#'       NULL
+#'   })
+#'
+#'
+#'
+#'
+#' #' One could replace the values of `hmax_list` with these;
+#' #' They make sense if the previous runs was based on `hmax = NULL`, i.e. automatic
+#' #' stepsize estimation.
 #' #'
-#' #'
-#' #' Auxillary plots: Are there more information in`rstate`?
-#' p_rstate_base +
-#'   aes(y = rstate_1)
-#' p_rstate_base +
-#'   aes(y = rstate_2)
-#' p_rstate_base +
-#'   aes(y = rstate_3)
-#' p_rstate_base +
-#'   aes(y = rstate_4)
-#' p_rstate_base +
-#'   aes(y = rstate_5)
-
-
-# VALIDATION PLOT: Across the given `hmax`, how does `tau` look like.
-
-# hmax_legend <- paste(Delta, " ", t[max]) %>% expression()
-#
-# model_output_df %>%
-#   # filter(
-#   #   cellarea
-#   #   celltype
-#   #   hmax
-#   # )
-#   # mutate(hmax_label = replace_na(as.character(hmax), "auto")) %>%
-#   group_by(beta_mat) %>%
-#   group_map(\(data, group_id) {
-#     ggplot(data) +
-#       aes(cellarea, tau, group = str_c(celltype)) +
-#       # geom_step(aes(linetype = hmax)) +
-#       geom_step(aes(color = celltype)) +
-#       scale_x_log10_rev() +
-#       theme_reverse_arrow_x() +
-#       theme(legend.position = "bottom") +
-#       # facet_wrap(~hmax_label, labeller = label_both) +
-#       # labs(linetype = hmax_legend,
-#       #      caption = glue("beta_mat: {group_id}")) +
-#       theme_blank_background()
-#   }
-#   )
+#' model_output_df %>%
+#'   summarise(observed = min(hlast), .by = beta_mat) %>%
+#'   mutate(config = beta_mat %>%
+#'            map_chr(. %>% `[[`(hmax_list, .) %>% null_as_na() %>% as.character()),
+#'          config = replace_na(config, "auto")) %>%
+#'   identity()
+#'
+#' model_output_df %>%
+#'   glimpse()
+#'
+#'
+#' # model_output_df %>%
+#' #   # mutate(hmax_label = replace_na(as.character(hmax), "auto")) %>%
+#' #   glimpse() %>%
+#' #   group_by(beta_mat) %>%
+#' #   group_map(\(data, group_id) {
+#' #     ggplot(data) +
+#' #       aes(cellarea, group = str_c(celltype)) +
+#' #       aes(y=rstate_1) +
+#' #       geom_step(aes(color = output_id)) +
+#' #       # scale_x_log10_rev() +
+#' #       # expand_limits(y = 0) +
+#' #       labs(linetype = hmax_legend,
+#' #            caption = glue("beta_mat: {group_id}")) +
+#' #       # theme_reverse_arrow_x() +
+#' #       theme_blank_background()
+#' #   })
+#'
+#' # NEEDS TO BE ADJUSTED
+#' #' p_rstate_base <- tau_df %>%
+#' #'   ggplot() +
+#' #'   aes(cellarea, group = str_c(celltype, hmax)) +
+#' #'   geom_step(aes(color = factor(hmax))) +
+#' #'   # scale_x_log10_rev() +
+#' #'   # expand_limits(y = 0) +
+#' #'   labs(color = expression(paste(Delta, " ", t[max]))) +
+#' #'   # theme_reverse_arrow_x() +
+#' #'   theme_blank_background()
+#' #' #'
+#' #' #'
+#' #' #' Auxillary plots: Are there more information in`rstate`?
+#' #' p_rstate_base +
+#' #'   aes(y = rstate_1)
+#' #' p_rstate_base +
+#' #'   aes(y = rstate_2)
+#' #' p_rstate_base +
+#' #'   aes(y = rstate_3)
+#' #' p_rstate_base +
+#' #'   aes(y = rstate_4)
+#' #' p_rstate_base +
+#' #'   aes(y = rstate_5)
+#'
+#'
+#' # VALIDATION PLOT: Across the given `hmax`, how does `tau` look like.
+#'
+#' # hmax_legend <- paste(Delta, " ", t[max]) %>% expression()
+#' #
+#' # model_output_df %>%
+#' #   # filter(
+#' #   #   cellarea
+#' #   #   celltype
+#' #   #   hmax
+#' #   # )
+#' #   # mutate(hmax_label = replace_na(as.character(hmax), "auto")) %>%
+#' #   group_by(beta_mat) %>%
+#' #   group_map(\(data, group_id) {
+#' #     ggplot(data) +
+#' #       aes(cellarea, tau, group = str_c(celltype)) +
+#' #       # geom_step(aes(linetype = hmax)) +
+#' #       geom_step(aes(color = celltype)) +
+#' #       scale_x_log10_rev() +
+#' #       theme_reverse_arrow_x() +
+#' #       theme(legend.position = "bottom") +
+#' #       # facet_wrap(~hmax_label, labeller = label_both) +
+#' #       # labs(linetype = hmax_legend,
+#' #       #      caption = glue("beta_mat: {group_id}")) +
+#' #       theme_blank_background()
+#' #   }
+#' #   )
