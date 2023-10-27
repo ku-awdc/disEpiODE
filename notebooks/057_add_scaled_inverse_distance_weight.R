@@ -60,6 +60,9 @@ hmax_list <- list(
   # use `NULL` for auto
   # inverse = 0.0370,
   inverse = 0.0192,
+
+  scaled_inverse = 0.05,
+
   # exp = 0.115,
   exp = 0.100,
   # half_normal = 0.144
@@ -355,19 +358,50 @@ output_prevalence_at_tau %>%
       theme_blank_background()
   })
 
-tau_rstate %>%
+tau_hfirst_df <- tau_rstate %>%
   enframe() %>%
   unnest_wider(value) %>%
   select(name, ends_with("tau")) %>%
-  # unnest_wider() %>%
-  # unnest(ends_with("tau"), names_sep = "_") %>%
   unnest_wider(ends_with("tau"), names_sep = "_") %>%
   select(name, ends_with("rstate")) %>%
-  mutate(across(ends_with("rstate"), . %>% map_dbl(. %>% `[`(1)))) %>%
+  mutate(across(ends_with("rstate"),
+                . %>% map_dbl(. %>% `[`(1)))) %>%
 
   bind_cols(params1) %>%
 
+  pivot_longer(
+    ends_with("rstate"),
+    names_to = "beta_mat",
+    values_to = c("hlast"),
+    names_pattern = "output_(\\w+)_tau_rstate"
+  ) %>%
+
   identity()
+
+tau_hfirst_df %>%
+
+  ggplot() +
+  aes(cellarea, hlast, group = str_c(celltype, beta_mat)) +
+
+  geom_step(aes(color = celltype)) +
+
+  facet_wrap(~beta_mat, scales = "free") +
+
+  theme_blank_background()
+
+
+#' One could replace the values of `hmax_list` with these;
+#' They make sense if the previous runs was based on `hmax = NULL`, i.e. automatic
+#' stepsize estimation.
+#'
+#'
+tau_hfirst_df %>%
+  summarise(observed = min(hlast), .by = beta_mat) %>%
+  mutate(config = beta_mat %>%
+           map_chr(. %>% `[[`(hmax_list, .) %>% null_as_na() %>% as.character()),
+         config = replace_na(config, "auto")) %>%
+  identity()
+
 
 #'
 #' odel_output_df <-
