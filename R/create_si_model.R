@@ -90,11 +90,11 @@ model_func <- function(times, y, parameters) {
   prevalence_population <- sum(I)  / sum(carry) # alternative: divide by sum(S + I) instead
   # weighted arithmetic mean of prevalence
   prevalence_target <- sum((I[target_overlap$id_overlap] /
-                              carry[target_overlap$id_overlap]) * target_overlap$weight) /
-    sum(target_overlap$weight)
+                              carry[target_overlap$id_overlap]) * target_overlap$weight)
+    # sum(target_overlap$weight)
   prevalence_middle <- sum((I[middle_overlap$id_overlap] /
-                              carry[middle_overlap$id_overlap]) * middle_overlap$weight) /
-    sum(middle_overlap$weight)
+                              carry[middle_overlap$id_overlap]) * middle_overlap$weight)
+    # sum(middle_overlap$weight)
 
   list(c(dS, dI),
        prevalence_target = prevalence_target,
@@ -153,8 +153,8 @@ find_target_prevalence <- function(times, y, parameters) {
   # )
   # APPROACH: MATT
   prevalence_target <- sum((I[target_overlap$id_overlap] /
-                              carry[target_overlap$id_overlap]) * target_overlap$weight) /
-    sum(target_overlap$weight)
+                              carry[target_overlap$id_overlap]) * target_overlap$weight)
+    # sum(target_overlap$weight)
   #
   # APPROACH:
   # prevalence_target <- sum(I[target_overlap$id_overlap] * target_overlap$weight) / sum(target_overlap$weight)
@@ -162,4 +162,3 @@ find_target_prevalence <- function(times, y, parameters) {
   c(prevalence_target - 0.5,
     terminate_extinction(times, y, parameters))
 }
-
