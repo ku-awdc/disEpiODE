@@ -317,11 +317,12 @@ output_prevalence_at_tau <-
   )) %>%
   unnest(ends_with("prevalence"), names_sep = "_") %>%
 
+  # remove the tau-outputs!
   select(-ends_with("tau")) %>%
 
   print(width = Inf)
 
-kernel_levels <- c("inverse", "exp", "half_normal")
+kernel_levels <- c("inverse", "scaled_inverse", "exp", "half_normal")
 
 output_prevalence_at_tau %>%
 
@@ -353,6 +354,21 @@ output_prevalence_at_tau %>%
       theme_reverse_arrow_x() +
       theme_blank_background()
   })
+
+tau_rstate %>%
+  enframe() %>%
+  unnest_wider(value) %>%
+  select(name, ends_with("tau")) %>%
+  # unnest_wider() %>%
+  # unnest(ends_with("tau"), names_sep = "_") %>%
+  unnest_wider(ends_with("tau"), names_sep = "_") %>%
+  select(name, ends_with("rstate")) %>%
+  mutate(across(ends_with("rstate"), . %>% map_dbl(. %>% `[`(1)))) %>%
+
+  bind_cols(params1) %>%
+
+  identity()
+
 #'
 #' odel_output_df <-
 #'   params1 %>%
