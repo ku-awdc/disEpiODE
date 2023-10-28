@@ -59,6 +59,11 @@ beta_mat_list <- c("inverse", "scaled_inverse", "half_normal", "exp")
 #TODO: make into a list that errors if accessing an undefined element
 hmax_list <- list(
 
+  inverse =         0.004, # 0.00439 auto
+  scaled_inverse =  0.009, # 0.00992 auto
+  half_normal =     0.03,  # 0.0302  auto
+  exp =             0.06   # 0.0641  auto
+
   # inverse = 0.003,
   # scaled_inverse = 0.005,
   # half_normal = 0.01,
@@ -80,7 +85,8 @@ hmax_list <- list(
   # # half_normal = 0.144
   # half_normal = 0.100
 )
-
+kernel_levels <- c("inverse", "scaled_inverse", "exp", "half_normal")
+celltype_levels <- c("triangle", "square", "hexagon")
 # pmap(params1,.progress = TRUE,
 future_pmap(params1, .progress = TRUE,
             \(world_scale, beta_baseline, buffer_offset_percent, buffer_radius,
@@ -174,18 +180,26 @@ future_pmap(params1, .progress = TRUE,
               target_overlap <- all_buffers_overlap_map$target
               middle_overlap <- all_buffers_overlap_map$middle
 
-              half_infected_mass <-
-                grid$carry[source_overlap$id_overlap] *
-                source_overlap$weight *
-                (1/2)
               #' remove mass from susceptible
-              y_init[source_overlap$id_overlap] <-
-                y_init[source_overlap$id_overlap] - half_infected_mass
-              y_init[
-                nrow(grid) +
-                  source_overlap$id_overlap
-              ] <- +half_infected_mass
+              # browser()
+              # y_init[source_overlap$id_overlap] # S
+              # y_init[nrow(grid) + source_overlap$id_overlap] # I
+              source_zone_area <-
+                all_buffers %>%
+                dplyr::filter(label == "source") %>%
+                pull(buffer_area)
 
+              carry_density <- sum(grid$carry) / world_scale**2
+              infection_mass <- source_zone_area * carry_density
+              infection_mass <- 0.5 * infection_mass
+
+              y_init[nrow(grid) + source_overlap$id_overlap] <- infection_mass * source_overlap$weight
+              y_init[source_overlap$id_overlap] <-
+                y_init[source_overlap$id_overlap] -
+                y_init[nrow(grid) + source_overlap$id_overlap]
+
+              # VALIDATION
+              # names(y_init)[nrow(grid) + source_overlap$id_overlap]
 
               # distance of the grid cells...
               all_beta_mat <- list()
@@ -309,6 +323,7 @@ future_pmap(params1, .progress = TRUE,
                 #TODO: check if tau exists
                 output$tau <- tau_model_output[2, 1]
                 result[[glue("output_{beta_mat_name}_tau")]] <- output
+                result[[glue("output_{beta_mat_name}_tau_state")]] <- tau_model_output
 
 
                 prevalence_at_tau <-
@@ -323,8 +338,12 @@ future_pmap(params1, .progress = TRUE,
                 result[[glue("output_{beta_mat_name}_prevalence")]] <-
                   list(prevalence_at_tau)
               }
-
-              result
+              structure(
+                list(
+                  grid = grid,
+                  output = result
+                )
+              )
             }) ->
   #TODO: rename this
   tau_rstate
@@ -332,12 +351,112 @@ future_pmap(params1, .progress = TRUE,
 tau_rstate %>%
   glimpse(max.level = 2)
 
-# pdf("plots_min_hstep.pdf",
-#     height = 6,
-#     width = 16 / 9 * 6)
+# pdf("plots_disable_within_transmission.pdf",
+#     height = 2*6,
+#     width = 16 / 9 * (2*6))
+
+state_at_tau <-
+  tau_rstate %>%
+  enframe() %>%
+  unnest_wider(value, names_sep = "_") %>%
+  select(name, grid = value_grid, ends_with("value_output")) %>%
+  unnest_wider(value_output, names_sep = "_") %>%
+  select(grid, ends_with("tau_state")) %>%
+  # glimpse()
+
+  bind_cols(params1) %>%
+
+  pivot_longer(
+    ends_with("tau_state"),
+    names_to = "beta_mat",
+    values_to = c("tau"),
+    names_pattern = "value_output_output_(\\w+)_tau_state"
+  ) %>%
+  mutate(celltype = factor(celltype, celltype_levels)) %>%
+  mutate(beta_mat = factor(beta_mat, kernel_levels)) %>%
+
+  print(width = Inf) %>%
+  identity()
+
+# state_at_tau$tau[[1]] %>% colnames() %>% {
+#   .[,(1 + ):length(.)]
+# }
+state_at_tau$tau %>% tail(1) %>%
+  `[[`(1) %>%
+  `[`(1, 1 + 32 + (1:32))
+seed_infection_df <- state_at_tau %>%
+  # hack to get number of cells `n_cells`
+  mutate(n_cells = map_int(tau, . %>% colnames() %>%
+                             str_remove_all(pattern = "\\D+") %>%
+                             as.numeric() %>% max(na.rm = TRUE))) %>%
+  mutate(
+    seed_infection_mass =
+      map2_dbl(tau, n_cells,
+               \(tau, n_cells) sum(tau[1, 1 + n_cells + (1:n_cells)]))
+  ) %>%
+  identity()
 
 
-kernel_levels <- c("inverse", "scaled_inverse", "exp", "half_normal")
+#' it is expected that this has one value...
+seed_infection_df %>%
+  distinct(zapsmall(seed_infection_mass))
+
+seed_infection_df <- seed_infection_df %>%
+  mutate(
+    I_at_tau = map2(tau, n_cells, \(tau, n_cells) {
+      tau[2, 1 + n_cells + (1:n_cells)]
+    })
+  )
+
+#TODO: Add plot of the grid...
+
+
+seed_infection_df %>%
+  mutate(grid = map(grid, I_at_tau,
+                    \(grid, I_at_tau)
+                    bind_cols(grid, I_at_tau))
+
+
+# mutate(seed_infection_mass = )
+# ggplot() +
+
+
+# Matrix::image(Matrix::Matrix(.))
+#
+
+
+#' ggplot() +
+#'   geom_sf(data = grid %>%
+#'             mutate(prev = prevalence_grid),
+#'           # filter(id %in% target_overlap$id_overlap),
+#'           aes(fill = prev)) +
+#'
+#'
+#'   geom_sf(data = all_buffers,
+#'           fill = NA,
+#'           # aes(geometry = st_buffer(buffer_polygon, dist = 0.1)),
+#'           aes(geometry = buffer_polygon),
+#'
+#'           linewidth = 2,
+#'           alpha = 0.5,
+#'           color = "white"
+#'   ) +
+#'
+#'   geom_sf(data = all_buffers,
+#'           fill = NA,
+#'           aes(color = label, geometry = buffer_polygon),
+#'           linewidth = 1
+#'   ) +
+#'
+#'   scale_fill_viridis_c() +
+#'   theme(legend.position = "none") +
+#'   labs(caption = "At time = tau") +
+#'   # theme(legend.position = "bottom") +
+#'   theme_blank_background()
+#' #'
+#' print(p_prevalence_at_Tau)
+
+
 #' Plot tau
 #'
 tau_rstate %>%
@@ -493,7 +612,7 @@ tau_hfirst_df %>%
   identity()
 
 
-# dev.off()
+dev.off()
 
 #' # NEEDS TO BE ADJUSTED
 #' #' p_rstate_base <- tau_df %>%
@@ -546,3 +665,4 @@ tau_hfirst_df %>%
 #' #       theme_blank_background()
 #' #   }
 #' #   )
+
