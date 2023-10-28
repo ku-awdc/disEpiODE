@@ -59,6 +59,7 @@ beta_mat_list <- c("inverse", "scaled_inverse", "half_normal", "exp")
 #TODO: make into a list that errors if accessing an undefined element
 hmax_list <- list(
 
+
   # CONFIGURATION: without within-herd infection
   # inverse =         0.004, # 0.00439 auto
   # scaled_inverse =  0.009, # 0.00992 auto

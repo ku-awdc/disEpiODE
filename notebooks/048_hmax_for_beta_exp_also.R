@@ -37,7 +37,8 @@ params1 <- tidyr::expand_grid(
 
 # pmap(params1,
 future_pmap(params1, .progress = TRUE,
-            \(world_scale, beta_baseline, buffer_offset_percent, buffer_radius, cellarea, celltype, hmax) {
+            \(world_scale, beta_baseline, buffer_offset_percent, buffer_radius,
+              cellarea, celltype, hmax) {
 
               source_target <-
                 get_buffer_source_target(landscape_width = world_scale,
