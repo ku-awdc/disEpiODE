@@ -24,7 +24,7 @@ ggplot() +
 
 create_grid(
   world_landscape,
-  cellarea = 5,
+  cellarea = world_scale**2,
   celltype = "square"
 ) %>%
   # st_area() %>% unique()
@@ -35,7 +35,7 @@ create_grid(
 
 create_grid(
   world_landscape,
-  cellarea = 5,
+  cellarea = world_scale**2,
   celltype = "hexagon"
 ) %>%
   # st_area() %>% zapsmall() %>%  table()
@@ -47,7 +47,7 @@ create_grid(
 
 create_grid(
   world_landscape,
-  cellarea = 5,
+  cellarea = world_scale**2,
   celltype = "triangle"
 ) %>%
   # st_area() %>% zapsmall() %>%  table()
@@ -59,7 +59,7 @@ create_grid(
 
 create_grid(
   world_landscape,
-  cellarea = 1,
+  cellarea = world_scale**2,
   celltype = "hexagon_rot"
 ) %>%
   # st_area() %>% zapsmall() %>%  table()
@@ -80,7 +80,7 @@ create_grid(
 
 #' ## Second part: Grid relationships
 #'
-cellarea <- seq_cellarea(n = 100, min_cellarea = 1, max_cellarea = world_scale)
+cellarea <- seq_cellarea(n = 200, min_cellarea = 1, max_cellarea = world_scale**2)
 
 generate_grids <- tibble(cellarea) %>%
   expand_grid(celltype = c("triangle", "square", "hexagon")) %>%
@@ -104,11 +104,19 @@ generate_grids <-  generate_grids %>%
 generate_grids %>%
   ggplot() +
   aes(cellarea, n) +
-  geom_line(aes(color = celltype)) +
-  # geom_step(aes(color = celltype)) +
+  # geom_line(aes(color = celltype)) +
+  geom_step(aes(color = celltype)) +
 
-  scale_x_log10() +
+  # stat_function(fun = ~ -.x) +
+  # geom_abline(slope = log10(0), slope = 1) +
+  # geom_abline(aes(intercept = 0, slope = 1,
+  #                 y = stage(after_scale = y))) +
+
+  scale_x_log10_rev() +
   scale_y_log10() +
+  theme_reverse_arrow_x() +
+
+  coord_equal() +
 
   theme_blank_background()
 
