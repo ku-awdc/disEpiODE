@@ -41,7 +41,7 @@ params1 <- tidyr::expand_grid(
     zapsmall() %>%
     unique(),
   # celltype = c("square", "hexagon", "hexagon_rot", "triangle"),
-  celltype = c("square", "hexagon", "triangle"),
+  celltype = c("triangle", "square", "hexagon"),
   # offset = "corner",
   # offset = c("corner", "middle", "bottom", "left"), #TODO
   # hmax = c(NA, 0.3, 0.3 / 2, 0.3 / 2 / 2),
@@ -361,7 +361,7 @@ state_at_tau <-
   unnest_wider(value, names_sep = "_") %>%
   select(name, grid = value_grid, ends_with("value_output")) %>%
   unnest_wider(value_output, names_sep = "_") %>%
-  select(grid, ends_with("tau_state")) %>%
+  select(name, grid, ends_with("tau_state")) %>%
   # glimpse()
 
   bind_cols(params1) %>%
@@ -378,17 +378,20 @@ state_at_tau <-
   print(width = Inf) %>%
   identity()
 
+
 # state_at_tau$tau[[1]] %>% colnames() %>% {
 #   .[,(1 + ):length(.)]
 # }
-state_at_tau$tau %>% tail(1) %>%
-  `[[`(1) %>%
-  `[`(1, 1 + 32 + (1:32))
+# state_at_tau$tau %>% tail(1) %>%
+#   `[[`(1) %>%
+#   `[`(1, 1 + 32 + (1:32))
 seed_infection_df <- state_at_tau %>%
   # hack to get number of cells `n_cells`
   mutate(n_cells = map_int(tau, . %>% colnames() %>%
                              str_remove_all(pattern = "\\D+") %>%
-                             as.numeric() %>% max(na.rm = TRUE))) %>%
+                             as.numeric() %>% max(na.rm = TRUE)),
+         #alternative to `n_cells`
+         n_grid_cells = map_int(grid, nrow)) %>%
   mutate(
     seed_infection_mass =
       map2_dbl(tau, n_cells,
@@ -399,39 +402,68 @@ seed_infection_df <- state_at_tau %>%
 
 #' it is expected that this has one value...
 seed_infection_df %>%
-  distinct(zapsmall(seed_infection_mass))
+  distinct(zapsmall(seed_infection_mass)) %>% {
+    stopifnot("seed infection mass must be the same across grids" = nrow(.) == 1)
+  }
 
 seed_infection_df <- seed_infection_df %>%
   mutate(
     I_at_tau = map2(tau, n_cells, \(tau, n_cells) {
       tau[2, 1 + n_cells + (1:n_cells)]
-    })
+    }),
+    S_at_tau = map2(tau, n_cells, \(tau, n_cells) {
+      tau[2, 1 + (1:n_cells)]
+    }),
+    # VALIDATION
+    # flag = I_at_tau %>% map_lgl(\(I) all(str_detect(names(I), "I"))) %>% all() %>% stopifnot(),
+    # flag = NULL,
+    grid =
+      map2(grid, I_at_tau, \(grid, I) bind_cols(grid, I = I)) %>%
+      map2(S_at_tau, \(grid, S) bind_cols(grid, S = S))
   )
 
-#TODO: Add plot of the grid...
-
-
 seed_infection_df %>%
-  mutate(grid = map(grid, I_at_tau,
-                    \(grid, I_at_tau)
-                    bind_cols(grid, I_at_tau))
+  rowid_to_column("rowid") %>%
+  arrange(beta_mat, celltype, rev(cellarea)) %>%
+  group_by(beta_mat, celltype) %>%
+  # rowwise() %>%
+  group_map(\(data, config_id) {
+    # browser()
+    celltype <- config_id$celltype
+    beta_mat <- config_id$beta_mat
+    pdf(glue("output/{celltype}_{beta_mat}.pdf"))
+    data %>%
+      rowwise() %>%
+      group_map(\(rowid_data, rowid_id){
+        p <- ggplot() +
+        # ggplot() +
+          geom_sf(data = rowid_data$grid[[1]],
+                  aes(fill = I / (S + I)), linetype = "dotted") +
 
+          # scale_fill_viridis_c(option = "inferno") +
+          scale_fill_viridis_c(option = "magma", limits = c(0, 1)) +
+          # theme(legend.position = "none") +
 
-# mutate(seed_infection_mass = )
-# ggplot() +
+          theme_blank_background() +
+          theme(text = element_text(size = 20)) +
+          theme(strip.text = element_text(size = 15),
+                legend.title = element_text(size = 15),
+                legend.background = element_blank(),
+                legend.text = element_text(size = 12)) +
+          guides(color = guide_legend(override.aes = list(linewidth = 2))) +
+          NULL
+        print(p)
+      })
+    dev.off()
+  })
+#
+# BASH:
+#
+# for pdf_file in *.pdf; do magick -density 150 "$pdf_file" -coalesce "${pdf_file%.pdf}.gif" & done; wait; echo "All conversions completed."
 
 
 # Matrix::image(Matrix::Matrix(.))
-#
-
-
-#' ggplot() +
-#'   geom_sf(data = grid %>%
-#'             mutate(prev = prevalence_grid),
-#'           # filter(id %in% target_overlap$id_overlap),
-#'           aes(fill = prev)) +
-#'
-#'
+# TODO: add the zones to the above plots!
 #'   geom_sf(data = all_buffers,
 #'           fill = NA,
 #'           # aes(geometry = st_buffer(buffer_polygon, dist = 0.1)),
@@ -448,20 +480,12 @@ seed_infection_df %>%
 #'           linewidth = 1
 #'   ) +
 #'
-#'   scale_fill_viridis_c() +
-#'   theme(legend.position = "none") +
-#'   labs(caption = "At time = tau") +
-#'   # theme(legend.position = "bottom") +
-#'   theme_blank_background()
-#' #'
-#' print(p_prevalence_at_Tau)
-
-
 #' Plot tau
 #'
 tau_rstate %>%
   enframe() %>%
   unnest_wider(value) %>%
+  unnest_wider(output) %>%
   select(name, ends_with("tau")) %>%
   unnest_wider(ends_with("tau"), names_sep = "_") %>%
   select(name, ends_with("tau")) %>%
@@ -476,7 +500,8 @@ tau_rstate %>%
     values_to = c("tau"),
     names_pattern = "output_(\\w+)_tau_tau"
   ) %>%
-  mutate(beta_mat = factor(beta_mat, kernel_levels)) %>%
+  mutate(beta_mat = factor(beta_mat, kernel_levels),
+         celltype = factor(celltype, celltype_levels)) %>%
 
   identity() %>%
   # print(width = Inf)
@@ -501,19 +526,17 @@ tau_rstate %>%
             legend.text = element_text(size = 12)) +
       guides(color = guide_legend(override.aes = list(linewidth = 2))) +
 
-
       labs(caption = "Kernel form: {kernel_levels[group_id %>% pull()]}" %>% glue()) +
 
       NULL
   })
 
-
-
 output_prevalence_at_tau <-
   tau_rstate %>%
   enframe("id", "output") %>%
-  bind_cols(params1) %>%
   unnest_wider(output) %>%
+  unnest_wider(output) %>%
+  bind_cols(params1) %>%
   unnest(ends_with("prevalence"), names_sep = "_") %>%
   mutate(across(ends_with("prevalence"),
                 . %>%
@@ -569,6 +592,7 @@ output_prevalence_at_tau %>%
 tau_hfirst_df <- tau_rstate %>%
   enframe() %>%
   unnest_wider(value) %>%
+  unnest_wider(output) %>%
   select(name, ends_with("tau")) %>%
   unnest_wider(ends_with("tau"), names_sep = "_") %>%
   select(name, ends_with("rstate")) %>%
