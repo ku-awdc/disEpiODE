@@ -60,6 +60,11 @@ beta_mat_list <- c("inverse", "scaled_inverse", "half_normal", "exp")
 hmax_list <- list(
 
 
+  inverse =         0.003, # 0.00370,
+  scaled_inverse =  0.006, # 0.00605,
+  half_normal =     0.01,  # 0.0112,
+  exp =             0.01   # 0.0115,
+
   # CONFIGURATION: without within-herd infection
   # inverse =         0.004, # 0.00439 auto
   # scaled_inverse =  0.009, # 0.00992 auto
@@ -464,9 +469,9 @@ seed_infection_df %>%
 # for pdf_file in *.pdf; do magick -density 150 "$pdf_file" -coalesce "${pdf_file%.pdf}.gif" & done; wait; echo "All conversions completed."
 
 
-pdf("plots_with_within_transmission.pdf",
-    height = 2*6,
-    width = 16 / 9 * (2*6))
+# pdf("plots_with_within_transmission_set_hmax.pdf",
+#     height = 2*6,
+#     width = 16 / 9 * (2*6))
 
 
 # Matrix::image(Matrix::Matrix(.))
