@@ -128,7 +128,12 @@ create_grid <- function(landscape,
 
         } else {
           # !is.null(n)
-          stop("not implemented")
+          st_make_grid(landscape,
+                       n = pmax(1, n),
+                       square = TRUE,
+                       what = "polygons") %>%
+            st_triangulate_constrained() %>%
+            st_collection_extract()
         }
 
       }
