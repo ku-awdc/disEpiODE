@@ -6,7 +6,8 @@
 \usage{
 create_grid(
   landscape,
-  cellarea,
+  cellarea = NULL,
+  n = NULL,
   celltype = c("square", "hexagon", "hexagon_rot", "triangle"),
   offset = c("corner", "middle", "bottom", "left")
 )
