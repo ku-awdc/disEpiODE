@@ -5,7 +5,7 @@ if (interactive()) {
   require(tidyverse)
   require(usethis)
   require(sf)
-
+  conflicted::conflicts_prefer(dplyr::filter)
   # future::availableCores()
   # future::availableWorkers()
   # message("Set the `multisession(workers = 10)`")
