@@ -18,20 +18,31 @@
 #' @export
 #'
 #' @examples
-create_grid <- function(landscape, cellarea,
+create_grid <- function(landscape,
+                        cellarea = NULL,
+                        n = NULL,
                         celltype = c("square", "hexagon", "hexagon_rot", "triangle"),
-                        offset = c("corner", "middle", "bottom", "left"),
-                        split_difference = FALSE) {
+                        offset = c("corner", "middle", "bottom", "left")) {
   stopifnot(
     "not implemented" = missing(offset),
-    "`cellarea must be positive number" = cellarea > 0,
-    "`cellarea` must not exceed provided `landscape` in size" =
-      cellarea <= sum(st_area(landscape)),
-    "`cellarea` must be of size 1 or 2" =
-      1 <= length(cellarea) && length(cellarea) <= 2
+    "either provide `n` or `cellarea`, not both" =
+      xor(is.null(n), is.null(cellarea))
   )
+
+  if (!is.null(cellarea)) {
+    stopifnot(
+      "`cellarea must be postivie number" = cellarea > 0,
+      "`cellarea` must not exceed provided `landscape` in size" =
+        cellarea <= sum(st_area(landscape)),
+      "`cellarea` must be of size 1 or 2" =
+        1 <= length(cellarea) && length(cellarea) <= 2
+    )
+  } else {
+    # !is.null(n)
+    # ???
+  }
+
   celltype <- match.arg(celltype, celltype)
-  landscape_bbox <- st_bbox(landscape)
 
   # offset <- match.arg(offset, choices = offset, several.ok = FALSE)
   # offset <- st_bbox(landscape)[c("xmin", "ymin")] -
@@ -50,90 +61,19 @@ create_grid <- function(landscape, cellarea,
   #          }
   #   )
 
-  # FIXME: `offset` is missing here! it is not enough just to uncomment the
-
-  cellsize <- switch(
-    celltype,
-    square = sqrt(c(cellarea, cellarea)),
-    hexagon = {
-      # Solve side-length for hexagons area
-      # area = (3×sqrt(3) / 2) × s**2
-      # area × 2 / (3×sqrt(3)) = s**2
-      # s = sqrt(2×area / (3×sqrt(3)))
-      #
-      # Documentation for `st_make_grid` states that:
-      #
-      # s = cellsize / sqrt(3)
-      #
-      # Insert and solve for `cellsize`
-      #
-      # => cellsize / sqrt(3) = sqrt(2×area / (3×sqrt(3)))
-      # => cellsize = sqrt(2×area / sqrt(3))
-      sqrt((2 * cellarea) / sqrt(3))
-      # NOTE: see `sf:::make_hex_grid` for more details
-    },
-    hexagon_rot = sqrt((2 * cellarea) / 3 * sqrt(3)),
-    triangle = sqrt(c(2 * cellarea, 2 * cellarea))
-  )
-  # browser()
-  landscape_size <- c(diff(landscape_bbox[c(1, 3)]),
-                      diff(landscape_bbox[c(2, 4)]))
-
-
-  grid_offset <- switch(
-    celltype,
-    square = {
-      rest_size <- (landscape_size %% cellsize)
-      rest_size**2 / 2
-    },
-    hexagon = {
-      # Solve side-length for hexagons area
-      # area = (3×sqrt(3) / 2) × s**2
-      # area × 2 / (3×sqrt(3)) = s**2
-      # s = sqrt(2×area / (3×sqrt(3)))
-      #
-      # Documentation for `st_make_grid` states that:
-      #
-      # s = cellsize / sqrt(3)
-      #
-      # Insert and solve for `cellsize`
-      #
-      # => cellsize / sqrt(3) = sqrt(2×area / (3×sqrt(3)))
-      # => cellsize = sqrt(2×area / sqrt(3))
-      #TODO: Missing
-      #dx = cellsize[1]/sqrt(3)
-      #dy = sqrt(3) * dx/2
-      #
-      #pt is offset
-      #c(x = (pt[1] - xlim[1])%%dx, y = (pt[2] - ylim[1])%%(2 * dy))
-      #
-      rest_size <- (landscape_size %% cellsize)
-      rest_size <- rest_size / 2
-      sqrt(3) * rest_size
-      # sqrt((2 * cellarea) / sqrt(3))
-      # NOTE: see `sf:::make_hex_grid` for more details
-    },
-    hexagon_rot = {
-
-      c(0,0)
-    },
-    triangle = {
-      rest_size <- (landscape_size %% cellsize)
-      rest_size**2 / 3
-    }
-  )
-
+  # FIXME: `offset` is missing here! it is not enough just to uncomment the above
   grid <-
     switch(
       celltype,
       square = {
-        cellsize <- sqrt(c(cellarea, cellarea))
-        if (split_difference) {
+        if (!is.null(cellarea)) {
+          cellsize <- sqrt(c(cellarea, cellarea))
           st_make_grid(landscape, cellsize = cellsize,
-                       offset = landscape_bbox[c(1, 2)] - grid_offset,
                        square = TRUE, what = "polygons")
         } else {
-          st_make_grid(landscape, cellsize = cellsize,
+          #!is.null(n)
+          st_make_grid(landscape,
+                       n = n,
                        square = TRUE, what = "polygons")
         }
 
@@ -153,52 +93,53 @@ create_grid <- function(landscape, cellarea,
         # => cellsize / sqrt(3) = sqrt(2×area / (3×sqrt(3)))
         # => cellsize = sqrt(2×area / sqrt(3))
 
-
-        #TODO: missing `split_difference`
-        cellsize <- sqrt((2 * cellarea) / sqrt(3))
-        if (split_difference) {
+        if (!is.null(cellarea)) {
+          cellsize <- sqrt((2 * cellarea) / sqrt(3))
           # NOTE: see `sf:::make_hex_grid` for more details
           st_make_grid(landscape, cellsize = cellsize,
-                       offset = landscape_bbox[c(1, 2)] - cellsize - grid_offset,
                        square = FALSE, what = "polygons")
         } else {
-          # NOTE: see `sf:::make_hex_grid` for more details
-          st_make_grid(landscape, cellsize = cellsize,
+          # !is.null(n)
+          st_make_grid(landscape,
+                       n = n,
                        square = FALSE, what = "polygons")
         }
 
       },
       hexagon_rot = {
-        #TODO: missing `split_difference`
-        cellsize <- sqrt((2 * cellarea) / 3 * sqrt(3))
-        st_make_grid(landscape, cellsize = cellsize,
-                     square = FALSE, flat_topped = TRUE, what = "polygons")
+        if (!is.null(cellarea)) {
+          cellsize <- sqrt((2 * cellarea) / 3 * sqrt(3))
+          st_make_grid(landscape, cellsize = cellsize,
+                       square = FALSE, flat_topped = TRUE, what = "polygons")
+        } else {
+          # !is.null(n)
+          st_make_grid(landscape, n = n, square = FALSE,
+                       flat_topped = TRUE, what = "polygons")
+        }
       },
       triangle = {
-        # cellsize <- rep(sqrt(cellarea * 2L), 2L)
-        cellsize <- sqrt(c(2 * cellarea, 2 * cellarea))
-        if (split_difference) {
-          st_make_grid(landscape,
-                       cellsize = cellsize,
-                       offset = landscape_bbox[c(1, 2)] - grid_offset,
-                       square = TRUE, what = "polygons") %>%
-            st_triangulate_constrained() %>%
-            st_collection_extract()
-        } else {
+        if (!is.null(cellarea)) {
+          # cellsize <- rep(sqrt(cellarea * 2L), 2L)
+          cellsize <- sqrt(c(2 * cellarea, 2 * cellarea))
           st_make_grid(landscape, cellsize = cellsize,
                        square = TRUE, what = "polygons") %>%
             st_triangulate_constrained() %>%
             st_collection_extract()
+
+        } else {
+          # !is.null(n)
+          stop("not implemented")
         }
 
       }
     )
-  # browser()
-  grid <- grid %>%
-    st_intersection(landscape, dimensions = "polygon") %>%
-    st_sf() %>%
-    # note: for hexagon, sometimes we have LINESTRING here..
-    dplyr::filter(st_area(geometry) > 0)
+
+  # grid <- grid %>%
+  #   st_intersection(landscape, dimensions = "polygon") %>%
+  #   st_sf() %>%
+  #   # note: for hexagon, sometimes we have LINESTRING here..
+  #   # dplyr::filter(st_area(geometry) > 0)
+  #   identity()
 
   matched_area <- isTRUE(all.equal(
     st_area(st_union(grid)),
@@ -215,6 +156,7 @@ create_grid <- function(landscape, cellarea,
   }
 
   # Amend grid with properties useful elsewhere
+  grid <- st_as_sf(grid)
   st_geometry(grid) <- "geometry"
   grid$area <- st_area(grid$geometry)
 
