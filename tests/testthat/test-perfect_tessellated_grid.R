@@ -93,7 +93,7 @@ test_that("nested splits perfect tessellation", {
                                ymin = 0, ymax = world_scale)) %>%
     st_as_sfc()
 
-  cellsize <- world_scale
+  # cellsize <- world_scale
   # current_grid <- world_landscape
   all_n_cells <- 1:round(sqrt(2500))
   for (n_cells in all_n_cells) {
@@ -154,6 +154,19 @@ test_that("nested splits perfect tessellation", {
       fill = NA, linewidth = 1.5, linetype = "dotted", color = "orange") +
     theme_grid_plot() +
     coord_sf(expand = FALSE)
+
+  ggplot() +
+    # geom_sf(data = create_grid(celltype = "square", n = c(2, 3), landscape = world_landscape),
+    #         fill = NA , linewidth = 1.9, linetCype = "dashed", color = "cornflowerblue") +
+    geom_sf(
+      # data = create_grid(celltype = "triangle", n = 1,
+      data = create_grid(celltype = "triangle", n = 3,
+                         landscape = world_landscape),
+      fill = NA, linewidth = 1.5, linetype = "dotted", color = "orange") +
+    theme_grid_plot() +
+    coord_sf(expand = FALSE)
+
+
 
 })
 

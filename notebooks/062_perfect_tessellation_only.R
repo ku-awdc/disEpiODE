@@ -21,31 +21,38 @@ params1 <- tidyr::expand_grid(
   beta_baseline = c(0.5),
   buffer_offset_percent = 0.2,
   buffer_radius = 3.5,
-  cellarea = c(
-
-    seq.default(0.5, world_scale**2, length.out = 150)
-
-    # 0.25, # 29** 2 / 0.20 = 4205
-    # seq.default(0.25, 2.5, length.out = 4) %>% head(-1),
-    # seq.default(0.20, 2.5, length.out = 3) %>% rev(),
-    # seq_cellarea(n = 50, min_cellarea = 0.45, max_cellarea = world_scale)
-    # seq_cellarea(n = 75, min_cellarea = 0.45, max_cellarea = world_scale)
-    # seq_cellarea(n = 50 + 25 + 25, min_cellarea = 2.5, max_cellarea = world_scale)
-    # seq_cellarea(n = 150, min_cellarea = 0.5, max_cellarea = world_scale)
-  ) %>%
-    # cellarea = c(
-    #   # 0.25, # 29** 2 / 0.20 = 4205
-    #   seq.default(0.25, 2.5, length.out = 4) %>% head(-1),
-    #   # seq.default(0.20, 2.5, length.out = 3) %>% rev(),
-    #   # seq_cellarea(n = 50, min_cellarea = 0.45, max_cellarea = world_scale)
-    #   # seq_cellarea(n = 75, min_cellarea = 0.45, max_cellarea = world_scale)
-    #   seq_cellarea(n = 50 + 25 + 25, min_cellarea = 2.5, max_cellarea = world_scale)
-    # ) %>%
-    zapsmall() %>%
-    unique(),
+  #TODO: make sure to calculate `cellarea` in the below plot, and
+  # provide the same plots but as a function of `n`, but then you cannot
+  # compare between `square` and `triangle`, as same choice of `n` leads to different
+  # resolution in terms of area, and point (centroid) density.
+  cellarea = NA,
+  n_cells = seq.default(from = 1, to = 50, by = 2),
+  # cellarea = c(
+  #
+  #   seq.default(0.5, world_scale**2, length.out = 150)
+  #
+  #   # 0.25, # 29** 2 / 0.20 = 4205
+  #   # seq.default(0.25, 2.5, length.out = 4) %>% head(-1),
+  #   # seq.default(0.20, 2.5, length.out = 3) %>% rev(),
+  #   # seq_cellarea(n = 50, min_cellarea = 0.45, max_cellarea = world_scale)
+  #   # seq_cellarea(n = 75, min_cellarea = 0.45, max_cellarea = world_scale)
+  #   # seq_cellarea(n = 50 + 25 + 25, min_cellarea = 2.5, max_cellarea = world_scale)
+  #   # seq_cellarea(n = 150, min_cellarea = 0.5, max_cellarea = world_scale)
+  # ) %>%
+  #   # cellarea = c(
+  #   #   # 0.25, # 29** 2 / 0.20 = 4205
+  #   #   seq.default(0.25, 2.5, length.out = 4) %>% head(-1),
+  #   #   # seq.default(0.20, 2.5, length.out = 3) %>% rev(),
+  #   #   # seq_cellarea(n = 50, min_cellarea = 0.45, max_cellarea = world_scale)
+  #   #   # seq_cellarea(n = 75, min_cellarea = 0.45, max_cellarea = world_scale)
+  #   #   seq_cellarea(n = 50 + 25 + 25, min_cellarea = 2.5, max_cellarea = world_scale)
+  #   # ) %>%
+  #   zapsmall() %>%
+  #   unique(),
   # celltype = c("square", "hexagon", "hexagon_rot", "triangle"),
   # celltype = c("triangle", "square", "hexagon"),
   celltype = c("triangle", "square"),
+  # celltype = c("square"),
   # offset = "corner",
   # offset = c("corner", "middle", "bottom", "left"), #TODO
   # hmax = c(NA, 0.3, 0.3 / 2, 0.3 / 2 / 2),
@@ -98,12 +105,12 @@ hmax_list <- list(
 )
 kernel_levels <- c("inverse", "scaled_inverse", "exp", "half_normal")
 celltype_levels <- c("triangle", "square", "hexagon")
-pmap(params1,.progress = TRUE,
-# future_pmap(params1, .progress = TRUE,
+# pmap(params1,.progress = TRUE,
+future_pmap(params1, .progress = TRUE,
             \(world_scale, beta_baseline, buffer_offset_percent, buffer_radius,
-              cellarea, celltype, hmax) {
+              cellarea, n_cells, celltype, hmax) {
 
-              #TODO
+              #TODO: codify this somehow
               remove_within_patch_transmission <- FALSE
 
               source_target <-
@@ -123,8 +130,10 @@ pmap(params1,.progress = TRUE,
               world_area <- st_area(world_landscape)
 
               grid <- create_grid(landscape = world_landscape,
-                                  cellarea = cellarea,
+                                  cellarea = na_as_null(cellarea),
+                                  n = na_as_null(n_cells),
                                   celltype = celltype)
+              #TODO: calculate n if cellarea is provided, and vice versa
 
               stopifnot(
                 "grid is not perfect tessellation" =
@@ -384,6 +393,17 @@ state_at_tau <-
 
   bind_cols(params1) %>%
 
+  # because of perfect tessellation, we can extract the actual cellarea
+  mutate(cellarea = if_else(
+    is.na(cellarea),
+    # map_dbl(grid, . %>% st_area() %>% unique())), # numeric
+    map_dbl(grid, . %>% st_area() %>% zapsmall() %>% unique()),
+    cellarea),
+    n_cells = if_else(is.na(n_cells),
+                      map_int(grid, . %>% nrow()),
+                      n_cells)
+  ) %>%
+
   pivot_longer(
     ends_with("tau_state"),
     names_to = "beta_mat",
@@ -405,14 +425,14 @@ state_at_tau <-
 #   `[`(1, 1 + 32 + (1:32))
 seed_infection_df <- state_at_tau %>%
   # hack to get number of cells `n_cells`
-  mutate(n_cells = map_int(tau, . %>% colnames() %>%
-                             str_remove_all(pattern = "\\D+") %>%
-                             as.numeric() %>% max(na.rm = TRUE)),
-         #alternative to `n_cells`
-         n_grid_cells = map_int(grid, nrow)) %>%
+  # mutate(n_cells = map_int(tau, . %>% colnames() %>%
+  #                            str_remove_all(pattern = "\\D+") %>%
+  #                            as.numeric() %>% max(na.rm = TRUE)),
+  #        #alternative to `n_cells`
+  mutate(n_grid_cells = map_int(grid, nrow)) %>%
   mutate(
     seed_infection_mass =
-      map2_dbl(tau, n_cells,
+      map2_dbl(tau, n_grid_cells,
                \(tau, n_cells) sum(tau[1, 1 + n_cells + (1:n_cells)]))
   ) %>%
   identity()

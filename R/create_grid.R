@@ -129,7 +129,7 @@ create_grid <- function(landscape,
         } else {
           # !is.null(n)
           st_make_grid(landscape,
-                       n = pmax(1, n),
+                       n = pmax(1, round(n / 2)),
                        square = TRUE,
                        what = "polygons") %>%
             st_triangulate_constrained() %>%
