@@ -531,9 +531,9 @@ tau_rstate %>%
   enframe() %>%
   unnest_wider(value) %>%
   unnest_wider(output) %>%
-  select(name, ends_with("tau")) %>%
+  select(name, grid, ends_with("tau")) %>%
   unnest_wider(ends_with("tau"), names_sep = "_") %>%
-  select(name, ends_with("tau")) %>%
+  select(name, grid, ends_with("tau")) %>%
 
   glimpse() %>%
 
@@ -546,7 +546,15 @@ tau_rstate %>%
     names_pattern = "output_(\\w+)_tau_tau"
   ) %>%
   mutate(beta_mat = factor(beta_mat, kernel_levels),
-         celltype = factor(celltype, celltype_levels)) %>%
+         celltype = factor(celltype, celltype_levels),
+         cellarea = if_else(
+           is.na(cellarea),
+           # map_dbl(grid, . %>% st_area() %>% unique())), # numeric
+           map_dbl(grid, . %>% st_area() %>% zapsmall() %>% unique()),
+           cellarea),
+         n_cells_set = n_cells,
+         n_cells = map_int(grid, nrow)
+  ) %>%
 
   identity() %>%
   # print(width = Inf)
@@ -582,6 +590,16 @@ output_prevalence_at_tau <-
   unnest_wider(output) %>%
   unnest_wider(output) %>%
   bind_cols(params1) %>%
+
+  mutate(
+    cellarea = if_else(
+      is.na(cellarea),
+      # map_dbl(grid, . %>% st_area() %>% unique())), # numeric
+      map_dbl(grid, . %>% st_area() %>% zapsmall() %>% unique()),
+      cellarea),
+    n_cells_set = n_cells,
+    n_cells = map_int(grid, nrow)
+  ) %>%
   unnest(ends_with("prevalence"), names_sep = "_") %>%
   mutate(across(ends_with("prevalence"),
                 . %>%
@@ -638,13 +656,20 @@ tau_hfirst_df <- tau_rstate %>%
   enframe() %>%
   unnest_wider(value) %>%
   unnest_wider(output) %>%
-  select(name, ends_with("tau")) %>%
+  select(name, grid, ends_with("tau")) %>%
   unnest_wider(ends_with("tau"), names_sep = "_") %>%
-  select(name, ends_with("rstate")) %>%
+  select(name, grid, ends_with("rstate")) %>%
   mutate(across(ends_with("rstate"),
                 . %>% map_dbl(. %>% `[`(1)))) %>%
 
   bind_cols(params1) %>%
+  mutate(cellarea = if_else(
+    is.na(cellarea),
+    # map_dbl(grid, . %>% st_area() %>% unique())), # numeric
+    map_dbl(grid, . %>% st_area() %>% zapsmall() %>% unique()),
+    cellarea),
+    n_cells_set = n_cells,
+    n_cells = map_int(grid, nrow)) %>%
 
   pivot_longer(
     ends_with("rstate"),
