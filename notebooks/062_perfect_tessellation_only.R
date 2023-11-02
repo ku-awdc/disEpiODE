@@ -26,7 +26,7 @@ params1 <- tidyr::expand_grid(
   # compare between `square` and `triangle`, as same choice of `n` leads to different
   # resolution in terms of area, and point (centroid) density.
   cellarea = NA,
-  n_cells = seq.default(from = 1, to = 50, by = 2),
+  n_cells = seq.default(from = 1, to = 50, by = 1),
   # cellarea = c(
   #
   #   seq.default(0.5, world_scale**2, length.out = 150)
@@ -399,9 +399,12 @@ state_at_tau <-
     # map_dbl(grid, . %>% st_area() %>% unique())), # numeric
     map_dbl(grid, . %>% st_area() %>% zapsmall() %>% unique()),
     cellarea),
-    n_cells = if_else(is.na(n_cells),
-                      map_int(grid, . %>% nrow()),
-                      n_cells)
+    n_cells_set = n_cells,
+    n_cells = map_int(grid, nrow)
+    # DOESN'T WORK FOR TRIANGLE
+    # n_cells = if_else(is.na(n_cells),
+    #                   map_int(grid, . %>% nrow()),
+    #                   n_cells)
   ) %>%
 
   pivot_longer(
@@ -429,10 +432,9 @@ seed_infection_df <- state_at_tau %>%
   #                            str_remove_all(pattern = "\\D+") %>%
   #                            as.numeric() %>% max(na.rm = TRUE)),
   #        #alternative to `n_cells`
-  mutate(n_grid_cells = map_int(grid, nrow)) %>%
   mutate(
     seed_infection_mass =
-      map2_dbl(tau, n_grid_cells,
+      map2_dbl(tau, n_cells,
                \(tau, n_cells) sum(tau[1, 1 + n_cells + (1:n_cells)]))
   ) %>%
   identity()
