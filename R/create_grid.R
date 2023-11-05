@@ -31,7 +31,7 @@ create_grid <- function(landscape,
 
   if (!is.null(cellarea)) {
     stopifnot(
-      "`cellarea must be postivie number" = cellarea > 0,
+      "`cellarea must be postive number" = cellarea > 0,
       "`cellarea` must not exceed provided `landscape` in size" =
         cellarea <= sum(st_area(landscape)),
       "`cellarea` must be of size 1 or 2" =

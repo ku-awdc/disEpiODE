@@ -13,7 +13,7 @@ library(future)
 library(furrr)
 
 tag <- "043" # REMEMBER TO SET THIS
-post_tag <- "set_hmax" # REMEMBER TO SET THIS
+post_tag <- "_only_sq" # REMEMBER TO SET THIS
 fs::dir_create("output/perfect_tessellation" %>% glue())
 fs::dir_create("output/perfect_tessellation_{post_tag}" %>% glue())
 
@@ -35,7 +35,7 @@ params1 <- tidyr::expand_grid(
   # compare between `square` and `triangle`, as same choice of `n` leads to different
   # resolution in terms of area, and point (centroid) density.
   cellarea = NA,
-  n_cells = seq.default(from = 1, to = 50, by = 1),
+  n_cells = seq.default(from = 1, to = 65, by = 1),
   # cellarea = c(
   #
   #   seq.default(0.5, world_scale**2, length.out = 150)
@@ -60,7 +60,7 @@ params1 <- tidyr::expand_grid(
   #   unique(),
   # celltype = c("square", "hexagon", "hexagon_rot", "triangle"),
   # celltype = c("triangle", "square", "hexagon"),
-  celltype = c("triangle", "square")
+  celltype = c("square")
   # celltype = c("square"),
   # offset = "corner",
   # offset = c("corner", "middle", "bottom", "left"), #TODO
