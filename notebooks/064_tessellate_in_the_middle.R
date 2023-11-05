@@ -13,7 +13,7 @@ library(future)
 library(furrr)
 
 tag <- "043" # REMEMBER TO SET THIS
-post_tag <- "middle_sq_set_hmax" # REMEMBER TO SET THIS
+post_tag <- "middle_sq_tri_set_hmax" # REMEMBER TO SET THIS
 fs::dir_create("output/{post_tag}" %>% glue())
 
 
@@ -33,7 +33,7 @@ params1 <- tidyr::expand_grid(
   # provide the same plots but as a function of `n`, but then you cannot
   # compare between `square` and `triangle`, as same choice of `n` leads to different
   # resolution in terms of area, and point (centroid) density.
-  cellarea = seq_cellarea(n = 100, min_cellarea = .25, max_cellarea = 10),
+  cellarea = seq_cellarea(n = 150, min_cellarea = .50, max_cellarea = 10),
   n_cells = NA,
   # n_cells = seq.default(from = 1, to = 70, by = 1),
   # cellarea = c(
@@ -60,7 +60,7 @@ params1 <- tidyr::expand_grid(
   #   unique(),
   # celltype = c("square", "hexagon", "hexagon_rot", "triangle"),
   # celltype = c("triangle", "square", "hexagon"),
-  celltype = c("square"),
+  celltype = c("triangle", "square"),
   middle = c(TRUE)
   # celltype = c("square"),
   # offset = "corner",
@@ -83,10 +83,10 @@ beta_mat_list <- c("inverse", "scaled_inverse", "half_normal", "exp")
 #TODO: make into a list that errors if accessing an undefined element
 hmax_list <- list(
 
-  inverse = 0.004,
-  scaled_inverse = 0.007,
-  half_normal = 0.03,
-  exp = 0.03
+  # inverse = 0.004,
+  # scaled_inverse = 0.007,
+  # half_normal = 0.03,
+  # exp = 0.03
 
   # inverse =        0.0004,
   # scaled_inverse = 0.0004,
