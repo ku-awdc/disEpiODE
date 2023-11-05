@@ -484,8 +484,6 @@ seed_infection_df <- seed_infection_df %>%
   )
 
 if (generate_animation_pdf) {
-
-
   seed_infection_df %>%
     rowid_to_column("rowid") %>%
     arrange(beta_mat, celltype, rev(cellarea)) %>%
