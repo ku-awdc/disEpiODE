@@ -8,6 +8,7 @@ create_grid(
   landscape,
   cellarea = NULL,
   n = NULL,
+  middle = FALSE,
   celltype = c("square", "hexagon", "hexagon_rot", "triangle"),
   offset = c("corner", "middle", "bottom", "left")
 )
@@ -16,6 +17,10 @@ create_grid(
 \item{landscape}{Landscape as \code{sf} object}
 
 \item{cellarea}{Positive number that is less than or equal to \code{st_area(landscape)}.}
+
+\item{n}{Integer specifying how many cells to place horizontally and vertically.}
+
+\item{middle}{Offset the grid so equal sized cells are in the middle.}
 
 \item{celltype}{Cell shapes \code{c("square", "hexagon", "hexagon_rot", "triangle")}}
 

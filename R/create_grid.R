@@ -80,7 +80,7 @@ create_grid <- function(landscape,
             cellsize <- sqrt(c(cellarea, cellarea))
 
             offset <- landscape_bbox_dim %% cellsize
-            offset <- cellsize - offset / 2
+            offset <- if (all(offset == 0)) { c(0, 0) } else { cellsize - offset / 2 }
 
             st_make_grid(landscape,
               cellsize = cellsize,
@@ -151,17 +151,35 @@ create_grid <- function(landscape,
         }
       },
       triangle = {
-        stopifnot("`middle` not implemented" = !middle)
+        # stopifnot("`middle` not implemented" = !middle)
 
         if (!is.null(cellarea)) {
           # cellsize <- rep(sqrt(cellarea * 2L), 2L)
-          cellsize <- sqrt(c(2 * cellarea, 2 * cellarea))
-          st_make_grid(landscape,
-            cellsize = cellsize,
-            square = TRUE, what = "polygons"
-          ) %>%
-            st_triangulate_constrained() %>%
-            st_collection_extract()
+          if (middle) {
+            # push cells to the middle
+            cellsize <- sqrt(c(2 * cellarea, 2 * cellarea))
+            offset <- landscape_bbox_dim %% cellsize
+            offset <- if (all(offset == 0)) { c(0, 0) } else { cellsize - offset / 2 }
+            st_make_grid(landscape,
+                         cellsize = cellsize,
+                         offset = -offset,
+                         square = TRUE,
+                         what = "polygons"
+            ) %>%
+              st_intersection(landscape, dimensions = "polygon") %>%
+              st_triangulate_constrained() %>%
+              st_collection_extract()
+          } else {
+            # don't push to the middle
+            cellsize <- sqrt(c(2 * cellarea, 2 * cellarea))
+            st_make_grid(landscape,
+                         cellsize = cellsize,
+                         square = TRUE, what = "polygons"
+            ) %>%
+              st_intersection(landscape, dimensions = "polygon") %>%
+              st_triangulate_constrained() %>%
+              st_collection_extract()
+          }
         } else {
           # !is.null(n)
           st_make_grid(landscape,
@@ -179,7 +197,7 @@ create_grid <- function(landscape,
     st_intersection(landscape, dimensions = "polygon") %>%
     st_sf() %>%
     # note: for hexagon, sometimes we have LINESTRING here..
-    # dplyr::filter(st_area(geometry) > 0)
+    dplyr::filter(st_area(geometry) > 0) %>%
     identity()
 
   matched_area <- isTRUE(all.equal(
