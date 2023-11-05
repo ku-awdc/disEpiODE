@@ -117,7 +117,7 @@ create_grid <- function(landscape,
         #
         # => cellsize / sqrt(3) = sqrt(2×area / (3×sqrt(3)))
         # => cellsize = sqrt(2×area / sqrt(3))
-
+        stopifnot("`middle` not implemented" = !middle)
         if (!is.null(cellarea)) {
           cellsize <- sqrt((2 * cellarea) / sqrt(3))
           # NOTE: see `sf:::make_hex_grid` for more details
@@ -135,6 +135,7 @@ create_grid <- function(landscape,
         }
       },
       hexagon_rot = {
+        stopifnot("`middle` not implemented" = !middle)
         if (!is.null(cellarea)) {
           cellsize <- sqrt((2 * cellarea) / 3 * sqrt(3))
           st_make_grid(landscape,
@@ -150,6 +151,8 @@ create_grid <- function(landscape,
         }
       },
       triangle = {
+        stopifnot("`middle` not implemented" = !middle)
+
         if (!is.null(cellarea)) {
           # cellsize <- rep(sqrt(cellarea * 2L), 2L)
           cellsize <- sqrt(c(2 * cellarea, 2 * cellarea))
