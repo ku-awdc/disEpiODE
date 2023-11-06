@@ -80,6 +80,8 @@ model_func <- function(times, y, parameters) {
 
   # infections <- beta_mat * S * I
   infections <- (I %*% beta_mat) * S
+  # infections <- ((I / area) %*% beta_mat) * S * area
+  # infections <- ((I * area) %*% beta_mat) * S / area
   # doesn't converge to anything, but tau -> 0 for n->infinity
   # infections <- (I %*% beta_mat) * S / area
   dS <- -infections
