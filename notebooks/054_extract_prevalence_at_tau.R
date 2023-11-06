@@ -326,7 +326,7 @@ output_prevalence_at_tau %>%
       geom_step(aes(color = celltype)) +
 
       facet_wrap(~prevalence_level, scales = "free_y") +
-      expand_limits(y = 1) +
+      # expand_limits(y = 1) +
 
       labs(caption = glue("Kernel {kernel_name}")) +
 

@@ -13,13 +13,12 @@ library(future)
 library(furrr)
 
 tag <- "043" # REMEMBER TO SET THIS
-post_tag <- "only_sq" # REMEMBER TO SET THIS
-fs::dir_create("output/perfect_tessellation" %>% glue())
-fs::dir_create("output/perfect_tessellation_{post_tag}" %>% glue())
+post_tag <- "all_configs" # REMEMBER TO SET THIS
+fs::dir_create("output/{post_tag}" %>% glue())
 
 
 remove_within_patch_transmission <- FALSE
-generate_animation_pdf <- TRUE
+generate_animation_pdf <- FALSE
 #TODO:
 compute_trajectories_to_tau <- FALSE
 
@@ -34,33 +33,13 @@ params1 <- tidyr::expand_grid(
   # provide the same plots but as a function of `n`, but then you cannot
   # compare between `square` and `triangle`, as same choice of `n` leads to different
   # resolution in terms of area, and point (centroid) density.
-  cellarea = NA,
-  n_cells = seq.default(from = 1, to = 70, by = 1),
-  # cellarea = c(
-  #
-  #   seq.default(0.5, world_scale**2, length.out = 150)
-  #
-  #   # 0.25, # 29** 2 / 0.20 = 4205
-  #   # seq.default(0.25, 2.5, length.out = 4) %>% head(-1),
-  #   # seq.default(0.20, 2.5, length.out = 3) %>% rev(),
-  #   # seq_cellarea(n = 50, min_cellarea = 0.45, max_cellarea = world_scale)
-  #   # seq_cellarea(n = 75, min_cellarea = 0.45, max_cellarea = world_scale)
-  #   # seq_cellarea(n = 50 + 25 + 25, min_cellarea = 2.5, max_cellarea = world_scale)
-  #   # seq_cellarea(n = 150, min_cellarea = 0.5, max_cellarea = world_scale)
-  # ) %>%
-  #   # cellarea = c(
-  #   #   # 0.25, # 29** 2 / 0.20 = 4205
-  #   #   seq.default(0.25, 2.5, length.out = 4) %>% head(-1),
-  #   #   # seq.default(0.20, 2.5, length.out = 3) %>% rev(),
-  #   #   # seq_cellarea(n = 50, min_cellarea = 0.45, max_cellarea = world_scale)
-  #   #   # seq_cellarea(n = 75, min_cellarea = 0.45, max_cellarea = world_scale)
-  #   #   seq_cellarea(n = 50 + 25 + 25, min_cellarea = 2.5, max_cellarea = world_scale)
-  #   # ) %>%
-  #   zapsmall() %>%
-  #   unique(),
+  cellarea = c(NA, seq_cellarea(n = 150, min_cellarea = .50, max_cellarea = 10)),
+  # n_cells = NA,
+  n_cells = c(NA, seq.default(from = 1, to = 70, by = 1)),
   # celltype = c("square", "hexagon", "hexagon_rot", "triangle"),
   # celltype = c("triangle", "square", "hexagon"),
-  celltype = c("square")
+  celltype = c("triangle", "square"),
+  middle = c(TRUE, FALSE)
   # celltype = c("square"),
   # offset = "corner",
   # offset = c("corner", "middle", "bottom", "left"), #TODO
@@ -68,6 +47,23 @@ params1 <- tidyr::expand_grid(
   # hmax = c(NA, 0.25)
   # hmax = c(0.25)
 ) %>%
+  #TODO / FIXME: Only keep rows with either `n_cells` or `cellarea`, not both!
+  dplyr::filter(
+    # either perfect tessellation or fractured border
+    xor(is.na(n_cells), is.na(cellarea)),
+    # what if `n_cells` and `cellarea` were list-cols of size `2` pr. element
+    # xor(map_lgl(n_cells, \(x) all(is.na(x))), map_lgl(cellarea, \(x) all(is.na(x)))),
+
+    # middle doesn't make sense for perfect tessellation,
+    !middle | (middle & !is.na(n_cells)),
+
+    # PRESENTLY: `middle` isn't implemented for `hexagon` or `hexagon_rot`,
+    !middle | (middle & !str_detect(celltype, "hexagon|hexagon_rot"))
+  ) %>%
+  mutate(mode = case_when(!is.na(n_cells) ~ "perfect",
+                          !is.na(cellarea) & !middle ~ "axis aligned",
+                          !is.na(cellarea) & middle ~ "middle aligned")) %>%
+  # random order for error discovery
   # dplyr::sample_n(size = dplyr::n()) %>%
   identity()
 
@@ -78,52 +74,18 @@ beta_mat_list <- c("inverse", "scaled_inverse", "half_normal", "exp")
 #' of tau.
 #TODO: make into a list that errors if accessing an undefined element
 hmax_list <- list(
-
-  # inverse =        0.0004,
-  # scaled_inverse = 0.0004,
-  # half_normal =    0.0004,
-  # exp =            0.0004
-
-  # inverse =         0.003, # 0.00370,
-  # scaled_inverse =  0.006, # 0.00605,
-  # half_normal =     0.01,  # 0.0112,
-  # exp =             0.01   # 0.0115,
-
-  # CONFIGURATION: without within-herd infection
-  # inverse =         0.004, # 0.00439 auto
-  # scaled_inverse =  0.009, # 0.00992 auto
-  # half_normal =     0.03,  # 0.0302  auto
-  # exp =             0.06   # 0.0641  auto
-
-  # inverse = 0.003,
-  # scaled_inverse = 0.005,
-  # half_normal = 0.01,
-  # exp = 0.01
-
-  # inverse = 0.003,
-  # scaled_inverse = 0.005,
-  # half_normal = 0.01,
-  # exp = 0.01
-
-  # # use `NULL` for auto
-  # # inverse = 0.0370,
-  # inverse = 0.0192,
-  #
-  # scaled_inverse = 0.05,
-  #
-  # # exp = 0.115,
-  # exp = 0.100,
-  # # half_normal = 0.144
-  # half_normal = 0.100
+  # see output for eventual variables to set here
 )
 kernel_levels <- c("inverse", "scaled_inverse", "exp", "half_normal")
 celltype_levels <- c("triangle", "square", "hexagon")
 # pmap(params1,.progress = TRUE,
 future_pmap(params1, .progress = TRUE,
             \(world_scale, beta_baseline, buffer_offset_percent, buffer_radius,
-              cellarea, n_cells, celltype, hmax) {
+              cellarea, n_cells, celltype, middle, hmax, mode) {
+              #FIXME: `mode` is unused, and needs to be removed "later"
 
-              #TODO: codify this somehow
+              #TODO: codify this somehow ??
+              perfect_tessellation <- all(is.na(cellarea)) && !all(is.na(n_cells))
 
               source_target <-
                 get_buffer_source_target(landscape_width = world_scale,
@@ -144,23 +106,26 @@ future_pmap(params1, .progress = TRUE,
               grid <- create_grid(landscape = world_landscape,
                                   cellarea = na_as_null(cellarea),
                                   n = na_as_null(n_cells),
+                                  middle = middle,
                                   celltype = celltype)
               #TODO: calculate n if cellarea is provided, and vice versa
 
-              stopifnot(
-                "grid is not perfect tessellation" =
-                  grid$area %>% zapsmall() %>% unique() %>% length() %>% {
-                    . == 1
-                  }
-              )
+              # NOT USEFUL ALWAYS
+              if (perfect_tessellation) {
+                stopifnot(
+                  "grid is not perfect tessellation" =
+                    grid$area %>% zapsmall() %>% unique() %>% length() %>% {
+                      . == 1
+                    }
+                )
+              }
 
               grid <- grid %>% rowid_to_column("id")
-              population_total <- world_area
+              # population_total <- world_area
               grid$carry <- st_area(grid$geometry)
 
               y_init <- c(S = grid$carry,
                           I = numeric(length(grid$carry)))
-              # browser()
               # THREE APPROACH
 
               all_buffers_overlap_map <-
@@ -234,7 +199,8 @@ future_pmap(params1, .progress = TRUE,
               infection_mass <- source_zone_area * carry_density
               infection_mass <- 0.5 * infection_mass
 
-              y_init[nrow(grid) + source_overlap$id_overlap] <- infection_mass * source_overlap$weight
+              y_init[nrow(grid) + source_overlap$id_overlap] <-
+                infection_mass * source_overlap$weight
               y_init[source_overlap$id_overlap] <-
                 y_init[source_overlap$id_overlap] -
                 y_init[nrow(grid) + source_overlap$id_overlap]
@@ -335,8 +301,6 @@ future_pmap(params1, .progress = TRUE,
 
               # endregion
 
-
-
               #FIXME: all the `beta_mat`s are being calculated even if they
               # are not needed 🤷
 
@@ -411,7 +375,7 @@ state_at_tau <-
   mutate(cellarea = if_else(
     is.na(cellarea),
     # map_dbl(grid, . %>% st_area() %>% unique())), # numeric
-    map_dbl(grid, . %>% st_area() %>% zapsmall() %>% unique()),
+    map_dbl(grid, . %>% st_area() %>% max()),
     cellarea),
     n_cells_set = n_cells,
     n_cells = map_int(grid, nrow)
@@ -477,8 +441,6 @@ seed_infection_df <- seed_infection_df %>%
   )
 
 if (generate_animation_pdf) {
-
-
   seed_infection_df %>%
     rowid_to_column("rowid") %>%
     arrange(beta_mat, celltype, rev(cellarea)) %>%
@@ -488,7 +450,7 @@ if (generate_animation_pdf) {
       # browser()
       celltype <- config_id$celltype
       beta_mat <- config_id$beta_mat
-      pdf(glue("output/perfect_tessellation_{post_tag}/{celltype}_{beta_mat}.pdf"))
+      pdf(glue("output/{post_tag}/{celltype}_{beta_mat}.pdf"))
       data %>%
         rowwise() %>%
         group_map(\(rowid_data, rowid_id){
@@ -522,7 +484,7 @@ if (generate_animation_pdf) {
 
 }
 
-pdf("plots_with_perfect_tessellation_{post_tag}.pdf" %>%
+pdf("plots_with_{post_tag}.pdf" %>%
       glue(),
     height = 2*6,
     width = 16 / 9 * (2*6))
@@ -568,11 +530,12 @@ tau_rstate %>%
   ) %>%
   mutate(beta_mat = factor(beta_mat, kernel_levels),
          celltype = factor(celltype, celltype_levels),
-         cellarea = if_else(
-           is.na(cellarea),
-           # map_dbl(grid, . %>% st_area() %>% unique())), # numeric
-           map_dbl(grid, . %>% st_area() %>% zapsmall() %>% unique()),
-           cellarea),
+         #TODO: reenable this?
+         # cellarea = if_else(
+         #   is.na(cellarea),
+         #   # map_dbl(grid, . %>% st_area() %>% unique())), # numeric
+         #   map_dbl(grid, . %>% st_area() %>% max()),
+         #   cellarea),
          n_cells_set = n_cells,
          n_cells = map_int(grid, nrow)
   ) %>%
@@ -595,10 +558,10 @@ tau_plot_data %>%
 
       # ggplot2::sec_axis()
 
-      # scale_x_log10_rev(limits = c(10, NA)) +
+      # scale_x_log10_rev(limits = c(30, NA)) +
       # lims(x = c(NA, 10)) +
       labs(color = "Shape") +
-      coord_cartesian(xlim = c(10, NA)) +
+      coord_cartesian(xlim = c(30, NA)) +
       scale_x_log10_rev() +
       theme_reverse_arrow_x() +
       theme_blank_background() +
@@ -626,7 +589,7 @@ tau_plot_data %>%
       aes(cellarea, tau) +
       geom_step(aes(color = beta_mat)) +
       labs(color = "Kernel") +
-      coord_cartesian(xlim = c(NA, 10)) +
+      coord_cartesian(xlim = c(NA, 30)) +
       theme_blank_background() +
       theme(text = element_text(size = 20)) +
       theme(strip.text = element_text(size = 15),
@@ -648,11 +611,12 @@ output_prevalence_at_tau <-
   bind_cols(params1) %>%
 
   mutate(
-    cellarea = if_else(
-      is.na(cellarea),
-      # map_dbl(grid, . %>% st_area() %>% unique())), # numeric
-      map_dbl(grid, . %>% st_area() %>% zapsmall() %>% unique()),
-      cellarea),
+    #TODO: re-enable this?
+    # cellarea = if_else(
+    #   is.na(cellarea),
+    #   # map_dbl(grid, . %>% st_area() %>% unique())), # numeric
+    #   map_dbl(grid, . %>% st_area() %>% zapsmall() %>% unique()),
+    #   cellarea),
     n_cells_set = n_cells,
     n_cells = map_int(grid, nrow)
   ) %>%
@@ -698,7 +662,7 @@ output_prevalence_at_tau %>%
       # lims(x = c(4, NA)) +
       # expand_limits(y = 1) +
       #
-      coord_cartesian(xlim = c(10, NA)) +
+      coord_cartesian(xlim = c(30, NA)) +
 
       labs(caption = glue("Kernel form: {kernel_name}")) +
       theme(strip.text = element_text(size = 20),
@@ -721,11 +685,13 @@ tau_hfirst_df <- tau_rstate %>%
                 . %>% map_dbl(. %>% `[`(1)))) %>%
 
   bind_cols(params1) %>%
-  mutate(cellarea = if_else(
-    is.na(cellarea),
-    # map_dbl(grid, . %>% st_area() %>% unique())), # numeric
-    map_dbl(grid, . %>% st_area() %>% zapsmall() %>% unique()),
-    cellarea),
+  mutate(
+    # TODO: Re-enable this
+    # cellarea = if_else(
+    #   is.na(cellarea),
+    #   # map_dbl(grid, . %>% st_area() %>% unique())), # numeric
+    #   map_dbl(grid, . %>% st_area() %>% zapsmall() %>% unique()),
+    #   cellarea),
     n_cells_set = n_cells,
     n_cells = map_int(grid, nrow)) %>%
 
@@ -771,56 +737,3 @@ dev.off()
 
 
 beepr::beep()
-
-#' # NEEDS TO BE ADJUSTED
-#' #' p_rstate_base <- tau_df %>%
-#' #'   ggplot() +
-#' #'   aes(cellarea, group = str_c(celltype, hmax)) +
-#' #'   geom_step(aes(color = factor(hmax))) +
-#' #'   # scale_x_log10_rev() +
-#' #'   # expand_limits(y = 0) +
-#' #'   labs(color = expression(paste(Delta, " ", t[max]))) +
-#' #'   # theme_reverse_arrow_x() +
-#' #'   theme_blank_background()
-#' #' #'
-#' #' #'
-#' #' #' Auxillary plots: Are there more information in`rstate`?
-#' #' p_rstate_base +
-#' #'   aes(y = rstate_1)
-#' #' p_rstate_base +
-#' #'   aes(y = rstate_2)
-#' #' p_rstate_base +
-#' #'   aes(y = rstate_3)
-#' #' p_rstate_base +
-#' #'   aes(y = rstate_4)
-#' #' p_rstate_base +
-#' #'   aes(y = rstate_5)
-#'
-#'
-#' # VALIDATION PLOT: Across the given `hmax`, how does `tau` look like.
-#'
-#' # hmax_legend <- paste(Delta, " ", t[max]) %>% expression()
-#' #
-#' # model_output_df %>%
-#' #   # filter(
-#' #   #   cellarea
-#' #   #   celltype
-#' #   #   hmax
-#' #   # )
-#' #   # mutate(hmax_label = replace_na(as.character(hmax), "auto")) %>%
-#' #   group_by(beta_mat) %>%
-#' #   group_map(\(data, group_id) {
-#' #     ggplot(data) +
-#' #       aes(cellarea, tau, group = str_c(celltype)) +
-#' #       # geom_step(aes(linetype = hmax)) +
-#' #       geom_step(aes(color = celltype)) +
-#' #       scale_x_log10_rev() +
-#' #       theme_reverse_arrow_x() +
-#' #       theme(legend.position = "bottom") +
-#' #       # facet_wrap(~hmax_label, labeller = label_both) +
-#' #       # labs(linetype = hmax_legend,
-#' #       #      caption = glue("beta_mat: {group_id}")) +
-#' #       theme_blank_background()
-#' #   }
-#' #   )
-
