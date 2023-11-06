@@ -66,6 +66,20 @@ params1 <- tidyr::expand_grid(
   # random order for error discovery
   # dplyr::sample_n(size = dplyr::n()) %>%
   identity()
+#'
+#'
+#' Each configuration can be identified with:
+#' `c(n_cells, cellarea, celltype, middle)`, see below
+params1 %>%
+  count(
+    n_cells, cellarea, celltype, middle
+    # mode, celltype, middle # doesn't work
+  ) %>%
+  print() %>% {
+    summarise(., all(n == 1)) %>% print()
+  }
+#'
+#'
 
 beta_mat_list <- c("inverse", "scaled_inverse", "half_normal", "exp")
 # beta_mat_list <- c("half_normal")
@@ -359,6 +373,11 @@ future_pmap(params1, .progress = TRUE,
 
 tau_rstate %>%
   glimpse(max.level = 2)
+tau_rstate %>% length()
+tau_rstate %>% lengths()
+tau_rstate %>% names()
+tau_rstate[] %>% names()
+tau_rstate[[1]] %>% names()
 
 state_at_tau <-
   tau_rstate %>%
@@ -372,17 +391,12 @@ state_at_tau <-
   bind_cols(params1) %>%
 
   # because of perfect tessellation, we can extract the actual cellarea
-  mutate(cellarea = if_else(
-    is.na(cellarea),
-    # map_dbl(grid, . %>% st_area() %>% unique())), # numeric
-    map_dbl(grid, . %>% st_area() %>% max()),
-    cellarea),
-    n_cells_set = n_cells,
-    n_cells = map_int(grid, nrow)
-    # DOESN'T WORK FOR TRIANGLE
-    # n_cells = if_else(is.na(n_cells),
-    #                   map_int(grid, . %>% nrow()),
-    #                   n_cells)
+  mutate(cellarea = if_else(is.na(cellarea),
+                            # map_dbl(grid, . %>% st_area() %>% unique())), # numeric
+                            map_dbl(grid, . %>% st_area() %>% max()),
+                            cellarea),
+         n_cells_set = n_cells,
+         n_cells = map_int(grid, nrow)
   ) %>%
 
   pivot_longer(

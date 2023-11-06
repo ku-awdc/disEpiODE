@@ -321,7 +321,8 @@ output_prevalence_at_tau %>%
   group_map(\(data, kernel) {
     kernel_name <- kernel_levels[kernel %>% pull()]
     ggplot(data) +
-      aes(cellarea, prevalence, group = str_c(kernel, celltype, prevalence_level)) +
+      aes(cellarea, prevalence,
+        group = str_c(kernel, celltype, prevalence_level)) +
 
       geom_step(aes(color = celltype)) +
 
