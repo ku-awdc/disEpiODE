@@ -47,7 +47,7 @@ create_grid <- function(landscape,
     # Warning: if middle is specified, than don't do anything?
   }
 
-  celltype <- match.arg(celltype, celltype)
+  celltype <- match.arg(celltype, several.ok = FALSE)
 
   # offset <- match.arg(offset, choices = offset, several.ok = FALSE)
   # offset <- st_bbox(landscape)[c("xmin", "ymin")] -
