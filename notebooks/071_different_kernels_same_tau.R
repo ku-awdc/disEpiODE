@@ -5,8 +5,11 @@ devtools::load_all(reset = FALSE)
 # total_cells <- 250
 total_cells <- 500
 total_cells <- 750
-beta_baseline <- 0.05
-beta_baseline <- 0.5
+# total_cells <- 1200
+# total_cells <- 2000
+beta_baseline <- 0.000001
+beta_baseline <- 0.000001
+beta_baseline <- 0.005
 beta_mat_list <- c("inverse", "half_normal", "exp")
 remove_within_patch_transmission <- FALSE
 
@@ -332,14 +335,22 @@ result$output_exp_tau$tau
 result$output_half_normal_tau$tau
 
 last_tau_result <- NULL
+last_result <- NULL
 optim(
+  control = list(
+  ),
+  # method = "L-BFGS-B",
+  # lower = 0,
   c(inv = 1, exp = 1, half_normal = 1), fn = function(sigma_vec) {
-    if (any(sigma_vec <= 0)) {
-      Inf
-    }
     sigma_inv <- sigma_vec[1]
     sigma_exp <- sigma_vec[2]
     sigma_half_normal <- sigma_vec[3]
+    if (any(sigma_vec <= 0) ||
+        isTRUE(all.equal(sigma_inv, 0, check.attributes = FALSE)) ||
+        isTRUE(all.equal(sigma_exp, 0, check.attributes = FALSE)) ||
+        isTRUE(all.equal(sigma_half_normal, 0, check.attributes = FALSE))) {
+      return(Inf)
+    }
 
     # region: inverse
 
@@ -402,13 +413,16 @@ optim(
     stopifnot(all(names(beta_mat_list %in% names(all_beta_mat))))
 
     result <- list()
-
+    result$all_beta_mat <- all_beta_mat
     for (beta_mat_name in beta_mat_list) {
 
       beta_mat = all_beta_mat[[beta_mat_name]]
       if (remove_within_patch_transmission) {
         diag(beta_mat) <- 0
       }
+
+      #TODO: make every mat here a sparse matrix
+      # browser()
 
       tau_model_output <-
         rlang::exec(deSolve::ode,
@@ -428,20 +442,35 @@ optim(
       # result[[glue("output_{beta_mat_name}_tau_state")]] <- tau_model_output
     }
 
-
+    last_result <<- result
     tau_result <- c(
       inv = result$output_inverse_tau$tau,
       exp = result$output_exp_tau$tau,
       half_normal = result$output_half_normal_tau$tau
     )
     last_tau_result <<- tau_result
+    # they should be equal
     abs(tau_result[1] - tau_result[2]) +
       abs(tau_result[1] - tau_result[3]) +
-      abs(tau_result[2] - tau_result[3])
+      abs(tau_result[2] - tau_result[3]) +
+      # # they should be small
+      # sum(abs(tau_result)) +
+      # they should be large
+      sum(1 / abs(tau_result)) +
+      # shrinkage criteria
+      # sum(abs(sigma_vec))
+      0
+
+    # abs(tau_result[1] - 1000) +
+    #   abs(tau_result[2] - 1000) +
+    #   abs(tau_result[3] - 1000)
   }
 ) -> result_optim
 result_optim
 result_optim$par
+
+# last_result$all_beta_mat <- last_result$beta_mat_list
+
 # $par
 # inv         exp half_normal
 # 1.1077747   0.8734435   0.5449831
@@ -450,6 +479,22 @@ last_tau_result
 # > last_tau_result
 # inv.time         exp.time half_normal.time
 # 100.6522         100.6522         100.6522
+
+last_result$all_beta_mat %>%
+  lapply(
+    . %>% zapsmall() %>% Matrix::Matrix(sparse = TRUE)
+  ) %>%
+  lapply(
+    # . %>% Matrix::nnzero()
+    \(x) prod(dim(x)) - Matrix::nnzero(x)
+  )
+
+# uniroot(
+#   \(x) inv_sigma(x, sigma = result_optim$par[1]),
+#   lower = 0, upper = 1
+#   # interval = c(0, Inf)
+#   # lower = 0, upper = Inf, f.lower = 1
+# )
 
 tibble(distance = seq.default(0, 10, by = 0.2),
        kernel_inv = inv_sigma(distance, sigma = result_optim$par[1]),
