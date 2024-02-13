@@ -26,6 +26,11 @@ create_grid <- function(landscape,
                         middle = FALSE,
                         celltype = c("square", "hexagon", "hexagon_rot", "triangle"),
                         offset = c("corner", "middle", "bottom", "left")) {
+  #TODO: Finish "middle" which means all the borders should be the same type
+  #
+  #TODO: introduce center, which means that the center point of the landscape
+  # is contained in a cell, and it is that cell's centroid.
+
   stopifnot(
     "not implemented" = missing(offset),
     "either provide `n` or `cellarea`, not both" =
@@ -44,7 +49,7 @@ create_grid <- function(landscape,
   } else {
     # !is.null(n)
     # ???
-    # Warning: if middle is specified, than don't do anything?
+    # Warning: if middle is specified, then don't do anything?
   }
 
   celltype <- match.arg(celltype, several.ok = FALSE)
