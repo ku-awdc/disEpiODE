@@ -2,8 +2,11 @@
 
 devtools::load_all(reset = FALSE)
 
-total_cells <- 250
+# total_cells <- 250
+total_cells <- 500
+total_cells <- 750
 beta_baseline <- 0.05
+beta_baseline <- 0.5
 beta_mat_list <- c("inverse", "half_normal", "exp")
 remove_within_patch_transmission <- FALSE
 
@@ -327,3 +330,139 @@ for (beta_mat_name in beta_mat_list) {
 result$output_inverse_tau$tau
 result$output_exp_tau$tau
 result$output_half_normal_tau$tau
+
+last_tau_result <- NULL
+optim(
+  c(inv = 1, exp = 1, half_normal = 1), fn = function(sigma_vec) {
+    if (any(sigma_vec <= 0)) {
+      Inf
+    }
+    sigma_inv <- sigma_vec[1]
+    sigma_exp <- sigma_vec[2]
+    sigma_half_normal <- sigma_vec[3]
+
+    # region: inverse
+
+    # VALIDATION
+    # isSymmetric(dist_grid)
+
+    # kernel(d) = 1 / (1 + d)
+    # beta_mat_inverse <- beta_baseline * (1/(1 + dist_grid))
+    beta_mat_inverse <- beta_baseline * inv_sigma(dist_grid, sigma = sigma_inv)
+    stopifnot(all(is.finite(beta_mat_inverse)))
+    diag(beta_mat_inverse) %>% unique() %>% {
+      stopifnot(isTRUE(all.equal(., beta_baseline)))
+    }
+    all_beta_mat$inverse <- beta_mat_inverse
+
+    # endregion
+
+
+
+    # region: exp
+
+    # kernel(d) = exp(-d)
+
+    beta_mat_exp <- beta_baseline * exp_sigma(dist_grid, sigma = sigma_exp)
+
+    stopifnot(all(is.finite(beta_mat_exp)))
+    diag(beta_mat_exp) %>% unique() %>% {
+      stopifnot(isTRUE(all.equal(., beta_baseline)))
+    }
+    all_beta_mat$exp <- beta_mat_exp
+
+    # endregion
+
+    # region: half-normal
+
+    # kernel(d) = 2×pdf(mean = 0, sd = mean_formula(1))
+
+    # dist_grid_half_normal <- dist_grid
+    # diag(dist_grid_half_normal) <- 0
+    beta_mat_half_normal <- beta_baseline *
+      half_normal_sigma(dist_grid, sigma = sigma_half_normal)
+    # beta_mat_half_normal <- beta_baseline *
+    #   half_normal_param_kernel(dist_grid, 1.312475, -1.560466, 3.233037)
+    # diag(beta_mat_half_normal) <- beta_baseline
+
+    # this test fails, but
+    # > half_normal_param_kernel(0, 1.312475, -1.560466, 3.233037)
+    # [1] 0.9999617
+    # and it should exactly 1
+    #
+    diag(beta_mat_half_normal) %>% unique() %>% {
+      stopifnot(isTRUE(all.equal(., beta_baseline)))
+    }
+    stopifnot(all(is.finite(beta_mat_half_normal)))
+
+    all_beta_mat$half_normal <- beta_mat_half_normal
+
+    # endregion
+
+    stopifnot(all(names(beta_mat_list %in% names(all_beta_mat))))
+
+    result <- list()
+
+    for (beta_mat_name in beta_mat_list) {
+
+      beta_mat = all_beta_mat[[beta_mat_name]]
+      if (remove_within_patch_transmission) {
+        diag(beta_mat) <- 0
+      }
+
+      tau_model_output <-
+        rlang::exec(deSolve::ode,
+                    !!!ode_parameters,
+                    # hmax = na_as_null(hmax_list[[beta_mat_name]]),
+                    parms = parameter_list %>% append(list(
+                      beta_mat = beta_mat
+                    )),
+                    # rootfunc = disEpiODE:::find_target_prevalence,
+                    rootfunc = disEpiODE:::find_middle_prevalence,
+                    times = c(0, Inf))
+      output <- list()
+      # output$rstate <- deSolve::diagnostics(tau_model_output)$rstate
+      #TODO: check if tau exists
+      output$tau <- tau_model_output[2, 1]
+      result[[glue("output_{beta_mat_name}_tau")]] <- output
+      # result[[glue("output_{beta_mat_name}_tau_state")]] <- tau_model_output
+    }
+
+
+    tau_result <- c(
+      inv = result$output_inverse_tau$tau,
+      exp = result$output_exp_tau$tau,
+      half_normal = result$output_half_normal_tau$tau
+    )
+    last_tau_result <<- tau_result
+    abs(tau_result[1] - tau_result[2]) +
+      abs(tau_result[1] - tau_result[3]) +
+      abs(tau_result[2] - tau_result[3])
+  }
+) -> result_optim
+result_optim
+result_optim$par
+# $par
+# inv         exp half_normal
+# 1.1077747   0.8734435   0.5449831
+
+last_tau_result
+# > last_tau_result
+# inv.time         exp.time half_normal.time
+# 100.6522         100.6522         100.6522
+
+tibble(distance = seq.default(0, 10, by = 0.2),
+       kernel_inv = inv_sigma(distance, sigma = result_optim$par[1]),
+       kernel_exp = exp_sigma(distance, sigma = result_optim$par[2]),
+       kernel_half_normal = half_normal_sigma(distance, sigma = result_optim$par[3]),
+) %>%
+  pivot_longer(starts_with("kernel"),
+               names_to = c("kernel"),
+               names_pattern = "kernel_(.*)",
+               values_to = "weight") %>%
+  ggplot() +
+  aes(x = distance, y = weight, group = kernel) +
+  geom_line(aes(color = kernel)) +
+  theme_blank_background() +
+  theme(legend.position = "bottom") +
+  NULL
