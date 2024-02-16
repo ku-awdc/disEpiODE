@@ -1,12 +1,5 @@
 
-
-library(magrittr)
-library(tidyverse)
-library(sf)
-
 devtools::load_all(".")
-
-
 
 world <- create_landscape(world_scale <- 39)
 world$landscape -> world_landscape
@@ -84,6 +77,9 @@ cellarea <- seq_cellarea(n = 200, min_cellarea = 1, max_cellarea = world_scale**
 
 generate_grids <- tibble(cellarea) %>%
   expand_grid(celltype = c("triangle", "square", "hexagon")) %>%
+  # DEBUG
+  slice(601) %>%
+
   mutate(grid =
            map2(celltype,  cellarea, \(celltype, cellarea)
                 create_grid(
