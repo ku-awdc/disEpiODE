@@ -2,18 +2,35 @@
 % Please edit documentation in R/seq_cellarea.R
 \name{seq_cellarea}
 \alias{seq_cellarea}
+\alias{seq_cells}
 \title{Generate \code{cellarea} sequence}
 \usage{
 seq_cellarea(precision = NULL, n = NULL, min_cellarea, max_cellarea)
+
+seq_cells(n_min_cells, n_max_cells, ...)
 }
 \arguments{
 \item{n, precision}{provide either \code{n} or \code{precision}, where \code{n} entails number of cells between
 \code{min_cellarea} and \code{max_cellarea}, and \code{precision} is \code{(1 - precision)^n} sequence}
 
 \item{min_cellarea, max_cellarea}{Numeric}
+
+\item{...}{
+  Arguments passed on to \code{\link[base:seq]{base::seq.default}}
+  \describe{
+    \item{\code{by}}{number: increment of the sequence.}
+    \item{\code{length.out}}{desired length of the sequence.  A
+    non-negative number, which for \code{seq} and \code{seq.int} will be
+    rounded up if fractional.}
+  }}
 }
 \value{
 Sequence of length \code{n + 1} between \code{min_cellarea} and \code{max_cellarea}
+
+Returns a sequence containing integer values between \code{n_min_cells}
+and \code{n_max_cells}. Note that the length of the returned vector is not guaranteed,
+as non-integer values will be rounded to nearest integer (odd-rounding), and
+equal values would be filtered out.
 }
 \description{
 Geometric sequence of \code{cellarea} used in \link{create_grid} based

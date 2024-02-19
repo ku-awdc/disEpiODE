@@ -42,7 +42,8 @@ create_grid <- function(landscape,
     stopifnot(
       "`cellarea must be positive number" = cellarea > 0,
       "`cellarea` must not exceed provided `landscape` in size" =
-        cellarea <= sum(st_area(landscape)),
+        (cellarea <= sum(st_area(landscape))) ||
+        isTRUE(all.equal(cellarea, sum(st_area(landscape)))),
       "`cellarea` must be of size 1 or 2" =
         1 <= length(cellarea) && length(cellarea) <= 2
     )
@@ -77,125 +78,125 @@ create_grid <- function(landscape,
     landscape_bbox[c(1, 2)]
   grid <-
     switch(celltype,
-      square = {
-        if (!is.null(cellarea)) {
-          # cellarea provided
-          if (middle) {
-            # offset to the middle
-            cellsize <- sqrt(c(cellarea, cellarea))
+           square = {
+             if (!is.null(cellarea)) {
+               # cellarea provided
+               if (middle) {
+                 # offset to the middle
+                 cellsize <- sqrt(c(cellarea, cellarea))
 
-            offset <- landscape_bbox_dim %% cellsize
-            offset <- if (all(offset == 0)) { c(0, 0) } else { cellsize - offset / 2 }
+                 offset <- landscape_bbox_dim %% cellsize
+                 offset <- if (all(offset == 0)) { c(0, 0) } else { cellsize - offset / 2 }
 
-            st_make_grid(landscape,
-              cellsize = cellsize,
-              offset = -offset,
-              square = TRUE, what = "polygons"
-            )
-          } else {
-            # don't offset to the "middle"
-            cellsize <- sqrt(c(cellarea, cellarea))
-            st_make_grid(landscape,
-              cellsize = cellsize,
-              square = TRUE, what = "polygons"
-            )
-          }
-        } else {
-          # !is.null(n)
-          st_make_grid(landscape,
-            n = n,
-            square = TRUE, what = "polygons"
-          )
-        }
-      },
-      hexagon = {
-        # Solve side-length for hexagons area
-        # area = (3×sqrt(3) / 2) × s**2
-        # area × 2 / (3×sqrt(3)) = s**2
-        # s = sqrt(2×area / (3×sqrt(3)))
-        #
-        # Documentation for `st_make_grid` states that:
-        #
-        # s = cellsize / sqrt(3)
-        #
-        # Insert and solve for `cellsize`
-        #
-        # => cellsize / sqrt(3) = sqrt(2×area / (3×sqrt(3)))
-        # => cellsize = sqrt(2×area / sqrt(3))
-        stopifnot("`middle` not implemented" = !middle)
-        if (!is.null(cellarea)) {
-          cellsize <- sqrt((2 * cellarea) / sqrt(3))
-          # NOTE: see `sf:::make_hex_grid` for more details
-          st_make_grid(landscape,
-            cellsize = cellsize,
-            square = FALSE, what = "polygons"
-          )
-        } else {
-          # !is.null(n)
-          st_make_grid(landscape,
-            n = n,
-            square = FALSE,
-            what = "polygons"
-          )
-        }
-      },
-      hexagon_rot = {
-        stopifnot("`middle` not implemented" = !middle)
-        if (!is.null(cellarea)) {
-          cellsize <- sqrt((2 * cellarea) / 3 * sqrt(3))
-          st_make_grid(landscape,
-            cellsize = cellsize,
-            square = FALSE, flat_topped = TRUE, what = "polygons"
-          )
-        } else {
-          # !is.null(n)
-          st_make_grid(landscape,
-            n = n, square = FALSE,
-            flat_topped = TRUE, what = "polygons"
-          )
-        }
-      },
-      triangle = {
-        # stopifnot("`middle` not implemented" = !middle)
+                 st_make_grid(landscape,
+                              cellsize = cellsize,
+                              offset = -offset,
+                              square = TRUE, what = "polygons"
+                 )
+               } else {
+                 # don't offset to the "middle"
+                 cellsize <- sqrt(c(cellarea, cellarea))
+                 st_make_grid(landscape,
+                              cellsize = cellsize,
+                              square = TRUE, what = "polygons"
+                 )
+               }
+             } else {
+               # !is.null(n)
+               st_make_grid(landscape,
+                            n = n,
+                            square = TRUE, what = "polygons"
+               )
+             }
+           },
+           hexagon = {
+             # Solve side-length for hexagons area
+             # area = (3×sqrt(3) / 2) × s**2
+             # area × 2 / (3×sqrt(3)) = s**2
+             # s = sqrt(2×area / (3×sqrt(3)))
+             #
+             # Documentation for `st_make_grid` states that:
+             #
+             # s = cellsize / sqrt(3)
+             #
+             # Insert and solve for `cellsize`
+             #
+             # => cellsize / sqrt(3) = sqrt(2×area / (3×sqrt(3)))
+             # => cellsize = sqrt(2×area / sqrt(3))
+             stopifnot("`middle` not implemented" = !middle)
+             if (!is.null(cellarea)) {
+               cellsize <- sqrt((2 * cellarea) / sqrt(3))
+               # NOTE: see `sf:::make_hex_grid` for more details
+               st_make_grid(landscape,
+                            cellsize = cellsize,
+                            square = FALSE, what = "polygons"
+               )
+             } else {
+               # !is.null(n)
+               st_make_grid(landscape,
+                            n = n,
+                            square = FALSE,
+                            what = "polygons"
+               )
+             }
+           },
+           hexagon_rot = {
+             stopifnot("`middle` not implemented" = !middle)
+             if (!is.null(cellarea)) {
+               cellsize <- sqrt((2 * cellarea) / 3 * sqrt(3))
+               st_make_grid(landscape,
+                            cellsize = cellsize,
+                            square = FALSE, flat_topped = TRUE, what = "polygons"
+               )
+             } else {
+               # !is.null(n)
+               st_make_grid(landscape,
+                            n = n, square = FALSE,
+                            flat_topped = TRUE, what = "polygons"
+               )
+             }
+           },
+           triangle = {
+             # stopifnot("`middle` not implemented" = !middle)
 
-        if (!is.null(cellarea)) {
-          # cellsize <- rep(sqrt(cellarea * 2L), 2L)
-          if (middle) {
-            # push cells to the middle
-            cellsize <- sqrt(c(2 * cellarea, 2 * cellarea))
-            offset <- landscape_bbox_dim %% cellsize
-            offset <- if (all(offset == 0)) { c(0, 0) } else { cellsize - offset / 2 }
-            st_make_grid(landscape,
-                         cellsize = cellsize,
-                         offset = -offset,
-                         square = TRUE,
-                         what = "polygons"
-            ) %>%
-              st_intersection(landscape, dimensions = "polygon") %>%
-              st_triangulate_constrained() %>%
-              st_collection_extract()
-          } else {
-            # don't push to the middle
-            cellsize <- sqrt(c(2 * cellarea, 2 * cellarea))
-            st_make_grid(landscape,
-                         cellsize = cellsize,
-                         square = TRUE, what = "polygons"
-            ) %>%
-              st_intersection(landscape, dimensions = "polygon") %>%
-              st_triangulate_constrained() %>%
-              st_collection_extract()
-          }
-        } else {
-          # !is.null(n)
-          st_make_grid(landscape,
-            n = pmax(1, round(n / 2)),
-            square = TRUE,
-            what = "polygons"
-          ) %>%
-            st_triangulate_constrained() %>%
-            st_collection_extract()
-        }
-      }
+             if (!is.null(cellarea)) {
+               # cellsize <- rep(sqrt(cellarea * 2L), 2L)
+               if (middle) {
+                 # push cells to the middle
+                 cellsize <- sqrt(c(2 * cellarea, 2 * cellarea))
+                 offset <- landscape_bbox_dim %% cellsize
+                 offset <- if (all(offset == 0)) { c(0, 0) } else { cellsize - offset / 2 }
+                 st_make_grid(landscape,
+                              cellsize = cellsize,
+                              offset = -offset,
+                              square = TRUE,
+                              what = "polygons"
+                 ) %>%
+                   st_intersection(landscape, dimensions = "polygon") %>%
+                   st_triangulate_constrained() %>%
+                   st_collection_extract()
+               } else {
+                 # don't push to the middle
+                 cellsize <- sqrt(c(2 * cellarea, 2 * cellarea))
+                 st_make_grid(landscape,
+                              cellsize = cellsize,
+                              square = TRUE, what = "polygons"
+                 ) %>%
+                   st_intersection(landscape, dimensions = "polygon") %>%
+                   st_triangulate_constrained() %>%
+                   st_collection_extract()
+               }
+             } else {
+               # !is.null(n)
+               st_make_grid(landscape,
+                            n = pmax(1, round(n / 2)),
+                            square = TRUE,
+                            what = "polygons"
+               ) %>%
+                 st_triangulate_constrained() %>%
+                 st_collection_extract()
+             }
+           }
     )
 
   grid <- grid %>%
@@ -215,8 +216,8 @@ create_grid <- function(landscape,
     # fix an issue with `st_make_grid` where the boundary gets an extra
     # set of grids sometimes..
     grid <- st_filter(grid,
-      landscape,
-      .predicate = st_within
+                      landscape,
+                      .predicate = st_within
     )
   }
 
