@@ -77,7 +77,8 @@ stopifnot(
 )
 
 
-rough_optim <- function(pars=c(sigma_exp, sigma_half_normal), sigma_inv=30, total_cells=750, plot=FALSE){
+rough_optim <- function(pars = c(sigma_exp, sigma_half_normal),
+                        sigma_inv = 30, total_cells = 750, plot = FALSE) {
 
   sigma_exp <- pars[1]
   sigma_half_normal <- pars[2]
@@ -334,25 +335,29 @@ rough_optim <- function(pars=c(sigma_exp, sigma_half_normal), sigma_inv=30, tota
     pt
   print(pt)
 
-  c(inverse=result$output_inverse_tau$tau, exp=result$output_exp_tau$tau, hn=result$output_half_normal_tau$tau)
 
+  c(
+    inverse = result$output_inverse_tau$tau,
+    exp = result$output_exp_tau$tau,
+    hn = result$output_half_normal_tau$tau
+  )
 }
 
 
 sigma_inv <- 100
 sigma_exp <- 7.24
 sigma_half_normal <- 0.13494
-rough_optim(c(sigma_exp,sigma_half_normal), sigma_inv, 750, TRUE)
+rough_optim(c(sigma_exp, sigma_half_normal), sigma_inv, 750, TRUE)
 
-rough_optim(c(sigma_exp,sigma_half_normal), sigma_inv, 500, TRUE)
-rough_optim(c(sigma_exp,sigma_half_normal), sigma_inv, 750, TRUE)
-rough_optim(c(sigma_exp,sigma_half_normal), sigma_inv, 1000, TRUE)
-rough_optim(c(sigma_exp,sigma_half_normal), sigma_inv, 2000, TRUE)
-rough_optim(c(sigma_exp,sigma_half_normal), sigma_inv, 5000, TRUE)
-rough_optim(c(sigma_exp,sigma_half_normal), sigma_inv, 10000, TRUE)
+rough_optim(c(sigma_exp, sigma_half_normal), sigma_inv, 500, TRUE)
+rough_optim(c(sigma_exp, sigma_half_normal), sigma_inv, 750, TRUE)
+rough_optim(c(sigma_exp, sigma_half_normal), sigma_inv, 1000, TRUE)
+rough_optim(c(sigma_exp, sigma_half_normal), sigma_inv, 2000, TRUE)
+rough_optim(c(sigma_exp, sigma_half_normal), sigma_inv, 5000, TRUE)
+rough_optim(c(sigma_exp, sigma_half_normal), sigma_inv, 10000, TRUE)
 
 
-### NOTE: dist_grid for optim will be based on the last-run total_cells for rough_optim
+### NOTE: `dist_grid` for optim will be based on the last-run total_cells for rough_optim
 rough_optim(c(sigma_exp,sigma_half_normal), sigma_inv, 1500, TRUE)
 dim(dist_grid)
 
