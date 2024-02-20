@@ -24,7 +24,8 @@ create_grid <- function(landscape,
                         cellarea = NULL,
                         n = NULL,
                         middle = FALSE,
-                        celltype = c("square", "hexagon", "hexagon_rot", "triangle"),
+                        celltype = c("square", "hexagon", "hexagon_rot", "triangle",
+                                     "triangulate_constrained"),
                         offset = c("corner", "middle", "bottom", "left")) {
   #TODO: Finish "middle" which means all the borders should be the same type
   #
@@ -92,14 +93,16 @@ create_grid <- function(landscape,
                               cellsize = cellsize,
                               offset = -offset,
                               square = TRUE, what = "polygons"
-                 )
+                 ) %>%
+                   st_intersection(landscape, dimensions = "polygon")
                } else {
                  # don't offset to the "middle"
                  cellsize <- sqrt(c(cellarea, cellarea))
                  st_make_grid(landscape,
                               cellsize = cellsize,
                               square = TRUE, what = "polygons"
-                 )
+                 ) %>%
+                   st_intersection(landscape, dimensions = "polygon")
                }
              } else {
                # !is.null(n)
@@ -130,7 +133,8 @@ create_grid <- function(landscape,
                st_make_grid(landscape,
                             cellsize = cellsize,
                             square = FALSE, what = "polygons"
-               )
+               ) %>%
+                 st_intersection(landscape, dimensions = "polygon")
              } else {
                # !is.null(n)
                st_make_grid(landscape,
@@ -147,7 +151,8 @@ create_grid <- function(landscape,
                st_make_grid(landscape,
                             cellsize = cellsize,
                             square = FALSE, flat_topped = TRUE, what = "polygons"
-               )
+               ) %>%
+                 st_intersection(landscape, dimensions = "polygon")
              } else {
                # !is.null(n)
                st_make_grid(landscape,
@@ -157,6 +162,46 @@ create_grid <- function(landscape,
              }
            },
            triangle = {
+             square_grid <-
+               if (is.null(n)) {
+                 # this means that is.null(cellarea) == FALSE
+                 cellsize <- sqrt(c(2 * cellarea, 2 * cellarea))
+                 st_make_grid(landscape,
+                              cellsize = cellsize,
+                              square = TRUE, what = "polygons"
+                 ) %>%
+                   st_intersection(landscape, dimensions = "polygon")
+               } else {
+                 # note: perfect tessellation, so no need to `st_intersection`...
+                 st_make_grid(landscape,
+                              n = pmax(1, round(n / 2)),
+                              square = TRUE,
+                              what = "polygons"
+                 )
+               }
+
+             top_left <- st_geometry(square_grid) %>%
+               lapply(\(square) st_polygon(list(bbox_coords_mat(square)[c(1, 3, 4, 5),]))) %>%
+               st_sfc() %>% st_sf() %>%
+               mutate(orientation = "bottom_right") %>%
+               rowid_to_column("id_square")
+
+             bottom_right <- st_geometry(square_grid) %>%
+               lapply(\(square) st_polygon(list(bbox_coords_mat(square)[c(1, 2, 3, 5),]))) %>%
+               st_sfc() %>% st_sf() %>%
+               mutate(orientation = "bottom_right") %>%
+               rowid_to_column("id_square")
+
+
+             #TODO: Add another orientation here (reformat this code like the above)
+             # top_right <- st_polygon(list(xy[c(2,3,4,2), ]))
+             # bottom_left <- st_polygon(list(xy[c(1, 2, 4, 5), ]))
+
+             grid <- dplyr::bind_rows(top_left = top_left, bottom_right = bottom_right)
+             # first verticals than horizontal elements
+             grid
+           },
+           triangulate_constrained = {
              # stopifnot("`middle` not implemented" = !middle)
 
              if (!is.null(cellarea)) {
@@ -200,7 +245,7 @@ create_grid <- function(landscape,
     )
 
   grid <- grid %>%
-    st_intersection(landscape, dimensions = "polygon") %>%
+    # st_intersection(landscape, dimensions = "polygon") %>%
     st_sf() %>%
     # note: for hexagon, sometimes we have LINESTRING here..
     dplyr::filter(st_area(geometry) > 0) %>%
@@ -260,4 +305,20 @@ create_grid <- function(landscape,
   grid
 }
 
-# CONCLUSION: For now, this doesn't work with triangles
+#' Bounding box as a polygon
+#'
+#' @param polygon
+#'
+#' @return Coordinate matrix of a bounding box in the form of a polygon
+#'
+#' @examples
+bbox_coords_mat <- function(polygon) {
+  bbox <- st_bbox(polygon)
+  coords_mat <- rbind(bbox[1:2],
+                      bbox[c(3, 2)],
+                      bbox[3:4],
+                      bbox[c(1, 4)],
+                      bbox[1:2])
+  colnames(coords_mat) <- c("X","Y")
+  coords_mat
+}
