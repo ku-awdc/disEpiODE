@@ -1,4 +1,5 @@
 
+devtools::load_all()
 
 landscape_sf <- st_sfc(
   st_polygon(
