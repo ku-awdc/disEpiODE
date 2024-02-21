@@ -26,9 +26,11 @@ middle_buffer <- get_middle_buffer(source_target = source_target,
 
 all_buffers <-
   rbind(source_target, middle_buffer) %>%
-  mutate(label = factor(label, c("source", "middle", "target")))
+  mutate(label = factor(label,
+                        c("source", "middle", "target"),
+                        labels = c("source", "target", "secondary")))
 
-#' Multiple grids represented
+#' Multiple grids represented, and the zones used in the simulation
 #'
 common_area <- 1 / 42
 
