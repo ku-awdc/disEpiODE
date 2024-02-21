@@ -9,7 +9,7 @@ library(disEpiODE)
 
 library(future)
 # plan(multisession(workers = 10))
-# plan(multisession(workers = 4))
+# future::plan(future::multisession(workers = 4))
 library(furrr)
 
 tag <- "076" # REMEMBER TO SET THIS
@@ -17,29 +17,27 @@ post_tag <- "final_draft" # REMEMBER TO SET THIS
 fs::dir_create("output/{post_tag}" %>% glue())
 
 
+world_scale <- 1
 remove_within_patch_transmission <- FALSE
 generate_animation_pdf <- FALSE
 #TODO:
 compute_trajectories_to_tau <- FALSE
+short_range_kernels <- FALSE
 
-world_scale <- 1
 params1 <- tidyr::expand_grid(
   world_scale = world_scale,
-  # beta_baseline = c(0.05),
-  beta_baseline = c(0.5),
+  beta_baseline = c(0.005),
   buffer_offset_percent = 0.2,
-  buffer_radius = 3.5,
+  buffer_radius = 0.15,
   #TODO: make sure to calculate `cellarea` in the below plot, and
   # provide the same plots but as a function of `n`, but then you cannot
   # compare between `square` and `triangle`, as same choice of `n` leads to different
   # resolution in terms of area, and point (centroid) density.
-  cellarea = c(NA, seq_cellarea(n = 150, min_cellarea = .50, max_cellarea = 10)),
+  cellarea = c(NA, seq_cellarea(n = 150, min_cellarea = 1 / 2000, max_cellarea = 1)),
   # n_cells = NA,
   n_cells = c(NA, seq.default(from = 1, to = 70, by = 1)),
-  # celltype = c("square", "hexagon", "hexagon_rot", "triangle"),
-  # celltype = c("triangle", "square", "hexagon"),
-  celltype = c("triangle", "square"),
-  middle = c(TRUE, FALSE)
+  celltype = c("triangle", "square", "hexagon"),
+  middle = c(FALSE)
   # celltype = c("square"),
   # offset = "corner",
   # offset = c("corner", "middle", "bottom", "left"), #TODO
@@ -81,7 +79,42 @@ params1 %>%
 #'
 #'
 
-beta_mat_list <- c("inverse", "scaled_inverse", "half_normal", "exp")
+#' Defined 1-parameter kernels
+
+inv_sigma <- function(distance, sigma = 1) {
+  1 / (sigma * distance + 1)
+}
+exp_sigma <- function(distance, sigma = 1) {
+  exp(-sigma * distance)
+}
+half_normal_sigma <- function(distance, sigma = 1) {
+  exp(-distance ** 2 / (2 * sigma ** 2))
+}
+#' These are calibrations found in 071
+if (short_range_kernels) {
+  #' Short-range kernel calibrations
+  sigma_inv <- 100
+  sigma_exp <- 12.6
+  sigma_half_normal <- 0.085
+} else {
+  #' Long range kernel calibrations
+  sigma_inv <- 30
+  sigma_exp <- 7.25
+  sigma_half_normal <- 0.135
+}
+
+stopifnot(
+  inv_sigma(0) == 1,
+  exp_sigma(0) == 1,
+  half_normal_sigma(0) == 1,
+  inv_sigma(0, sigma = sigma_inv) == 1,
+  exp_sigma(0, sigma = sigma_exp) == 1,
+  half_normal_sigma(0, sigma = sigma_half_normal) == 1
+)
+
+
+# beta_mat_list <- c("inverse", "scaled_inverse", "half_normal", "exp")
+beta_mat_list <- c("inverse", "exp", "half_normal")
 # beta_mat_list <- c("half_normal")
 
 #' This needs to be set for each new "configuration" to get accurate estimates
@@ -99,7 +132,11 @@ future_pmap(params1, .progress = TRUE,
               #FIXME: `mode` is unused, and needs to be removed "later"
 
               #TODO: codify this somehow ??
-              perfect_tessellation <- all(is.na(cellarea)) && !all(is.na(n_cells))
+              # do we expect the grid to be a perfect tessellation? i.e.
+              # equal sized cells?
+              perfect_tessellation <- all(is.na(cellarea)) &&
+                (!all(is.na(n_cells))) &&
+                (!celltype %in% c("hexagon", "hexagon_rot"))
 
               source_target <-
                 get_buffer_source_target(landscape_width = world_scale,
@@ -114,9 +151,10 @@ future_pmap(params1, .progress = TRUE,
 
               all_buffers <-
                 rbind(source_target, middle_buffer) %>%
-                mutate(label = factor(label, c("source", "middle", "target")))
+                mutate(label = factor(label, c("source", "middle", "target"),
+                                      labels = c("source", "target", "secondary")))
               world_area <- st_area(world_landscape)
-
+              # browser()
               grid <- create_grid(landscape = world_landscape,
                                   cellarea = na_as_null(cellarea),
                                   n = na_as_null(n_cells),
@@ -247,11 +285,27 @@ future_pmap(params1, .progress = TRUE,
                 ynames = FALSE
               )
 
+              # region: inverse
+              # kernel(d) = 1 / (1 + sigma×d)
+
+              # VALIDATION
+              # isSymmetric(dist_grid)
+
+              # kernel(d) = 1 / (1 + d)
+              beta_mat_inverse <- beta_baseline * inv_sigma(dist_grid, sigma = sigma_inv)
+              stopifnot(all(is.finite(beta_mat_inverse)))
+              diag(beta_mat_inverse) %>% unique() %>% {
+                stopifnot(isTRUE(all.equal(., beta_baseline)))
+              }
+              all_beta_mat$inverse <- beta_mat_inverse
+
+              # endregion
+
               # region: exp
 
-              # kernel(d) = exp(-d)
+              # kernel(d) = exp(-sigma×d)
 
-              beta_mat_exp <- beta_baseline * exp(-dist_grid)
+              beta_mat_exp <- beta_baseline * exp_sigma(dist_grid, sigma = sigma_exp)
 
               stopifnot(all(is.finite(beta_mat_exp)))
               diag(beta_mat_exp) %>% unique() %>% {
@@ -263,55 +317,16 @@ future_pmap(params1, .progress = TRUE,
 
               # region: half-normal
 
-              # kernel(d) = 2×pdf(mean = 0, sd = mean_formula(1))
+              # kernel(d) = exp(-distance ** 2 / (2 * sigma ** 2))
 
-              # dist_grid_half_normal <- dist_grid
-              # diag(dist_grid_half_normal) <- 0
               beta_mat_half_normal <- beta_baseline *
-                half_normal_kernel(dist_grid) / half_normal_kernel(0)
-              # beta_mat_half_normal <- beta_baseline *
-              #   half_normal_param_kernel(dist_grid, 1.312475, -1.560466, 3.233037)
-              # diag(beta_mat_half_normal) <- beta_baseline
+                half_normal_sigma(dist_grid, sigma = sigma_half_normal)
 
-              # this test fails, but
-              # > half_normal_param_kernel(0, 1.312475, -1.560466, 3.233037)
-              # [1] 0.9999617
-              # and it should exactly 1
-              #
-              # diag(beta_mat_half_normal) %>% unique() %>% {
-              #   stopifnot(isTRUE(all.equal(., beta_baseline)))
-              # }
+              diag(beta_mat_half_normal) %>% unique() %>% {
+                stopifnot(isTRUE(all.equal(., beta_baseline)))
+              }
               stopifnot(all(is.finite(beta_mat_half_normal)))
               all_beta_mat$half_normal <- beta_mat_half_normal
-
-
-              # endregion
-
-
-              # region: inverse
-
-              # VALIDATION
-              # isSymmetric(dist_grid)
-
-              # kernel(d) = 1 / (1 + d)
-              beta_mat_inverse <- beta_baseline * (1/(1 + dist_grid))
-              stopifnot(all(is.finite(beta_mat_inverse)))
-              diag(beta_mat_inverse) %>% unique() %>% {
-                stopifnot(isTRUE(all.equal(., beta_baseline)))
-              }
-              all_beta_mat$inverse <- beta_mat_inverse
-
-              # region: scaled inverse
-              choices <- c(0.4049956, 0.2700693);
-              scaled_d <- choices[1]
-
-              # kernel(d) = 1 / (1 + d / scaled_d)
-              beta_mat_scaled_inverse <- beta_baseline * (1/(1 + dist_grid / scaled_d))
-              stopifnot(all(is.finite(beta_mat_scaled_inverse)))
-              diag(beta_mat_scaled_inverse) %>% unique() %>% {
-                stopifnot(isTRUE(all.equal(., beta_baseline)))
-              }
-              all_beta_mat$scaled_inverse <- beta_mat_scaled_inverse
 
               # endregion
 
@@ -339,7 +354,8 @@ future_pmap(params1, .progress = TRUE,
                               parms = parameter_list %>% append(list(
                                 beta_mat = beta_mat
                               )),
-                              rootfunc = disEpiODE:::find_target_prevalence,
+                              # rootfunc = disEpiODE:::find_target_prevalence,
+                              rootfunc = disEpiODE:::find_middle_prevalence,
                               times = c(0, Inf))
                 output <- list()
                 output$rstate <- deSolve::diagnostics(tau_model_output)$rstate
@@ -347,7 +363,6 @@ future_pmap(params1, .progress = TRUE,
                 output$tau <- tau_model_output[2, 1]
                 result[[glue("output_{beta_mat_name}_tau")]] <- output
                 result[[glue("output_{beta_mat_name}_tau_state")]] <- tau_model_output
-
 
                 prevalence_at_tau <-
                   tau_model_output[
@@ -555,9 +570,6 @@ tau_rstate %>%
   ) %>%
 
   identity() -> tau_plot_data
-
-
-
 
 tau_plot_data %>%
   group_by(beta_mat) %>%
