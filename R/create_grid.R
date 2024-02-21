@@ -36,8 +36,8 @@ create_grid <- function(landscape,
     "not implemented" = missing(offset),
     "either provide `n` or `cellarea`, not both" =
       xor(is.null(n), is.null(cellarea)),
-    "`middle` doesn't work together with `n`" = (!middle && !is.null(n)) ||
-      middle && is.null(n)
+    "`middle` doesn't work together with `n`" =
+      (middle && is.null(n)) || !middle
   )
 
   if (!is.null(cellarea)) {
@@ -169,10 +169,24 @@ create_grid <- function(landscape,
                if (is.null(n)) {
                  # this means that is.null(cellarea) == FALSE
                  cellsize <- sqrt(c(2 * cellarea, 2 * cellarea))
-                 st_make_grid(landscape,
-                              cellsize = cellsize,
-                              square = TRUE, what = "polygons"
-                 ) %>%
+
+                 square_st_make_grid <- if (middle) {
+                   offset <- landscape_bbox_dim %% cellsize
+                   offset <- if (all(offset == 0)) { c(0, 0) } else { cellsize - offset / 2 }
+
+                   st_make_grid(landscape,
+                                cellsize = cellsize,
+                                square = TRUE, what = "polygons",
+                                offset = -offset
+                   )
+                 } else {
+                   # middle is false
+                   st_make_grid(landscape,
+                                cellsize = cellsize,
+                                square = TRUE, what = "polygons"
+                   )
+                 }
+                 square_st_make_grid %>%
                    st_intersection(landscape, dimensions = "polygon")
                } else {
                  # note: perfect tessellation, so no need to `st_intersection`...
@@ -200,7 +214,8 @@ create_grid <- function(landscape,
              # top_right <- st_polygon(list(xy[c(2,3,4,2), ]))
              # bottom_left <- st_polygon(list(xy[c(1, 2, 4, 5), ]))
 
-             grid <- dplyr::bind_rows(top_left = top_left, bottom_right = bottom_right)
+             grid <- dplyr::bind_rows(top_left = top_left,
+                                      bottom_right = bottom_right)
              # first verticals than horizontal elements
              grid
            },
