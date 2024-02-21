@@ -24,6 +24,7 @@ create_grid <- function(landscape,
                         cellarea = NULL,
                         n = NULL,
                         middle = FALSE,
+                        center_as_centroid = FALSE,
                         celltype = c("square", "hexagon", "hexagon_rot", "triangle",
                                      "triangulate_constrained"),
                         offset = c("corner", "middle", "bottom", "left")) {
@@ -99,12 +100,36 @@ create_grid <- function(landscape,
                    st_intersection(landscape, dimensions = "polygon")
                } else {
                  # don't offset to the "middle"
-                 cellsize <- sqrt(c(cellarea, cellarea))
-                 st_make_grid(landscape,
-                              cellsize = cellsize,
-                              square = TRUE, what = "polygons"
-                 ) %>%
-                   st_intersection(landscape, dimensions = "polygon")
+                 if (center_as_centroid) {
+                   # landscape_center = st_centroid(landscape)
+                   dist_center <-
+                     landscape %>% 
+                     st_centroid() %>% 
+                     st_distance(st_point(c(0,0))) %>% 
+                     `[`(1,1)
+                   cellsize <- sqrt(c(cellarea, cellarea))
+                   celldiagonal <- sqrt(sum(cellsize**2))
+                   offset <- dist_center %% celldiagonal
+                   offset_sign <- offset >= celldiagonal / 2
+                   offset <- -offset + celldiagonal / 2
+                   offset <- c(1,1) * offset / sqrt(2)
+                   offset <- offset_sign * cellsize  + offset
+
+                   st_make_grid(landscape,
+                                cellsize = cellsize,
+                                offset = -offset,
+                                square = TRUE, what = "polygons"
+                   ) %>%
+                     st_intersection(landscape, dimensions = "polygon")
+
+                 } else {
+                   cellsize <- sqrt(c(cellarea, cellarea))
+                   st_make_grid(landscape,
+                                cellsize = cellsize,
+                                square = TRUE, what = "polygons"
+                   ) %>%
+                     st_intersection(landscape, dimensions = "polygon")
+                 }
                }
              } else {
                # !is.null(n)
