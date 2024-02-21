@@ -123,7 +123,7 @@ beta_mat_list <- c("inverse", "exp", "half_normal")
 hmax_list <- list(
   # see output for eventual variables to set here
 )
-kernel_levels <- c("inverse", "scaled_inverse", "exp", "half_normal")
+kernel_levels <- c("inverse", "exp", "half_normal")
 celltype_levels <- c("triangle", "square", "hexagon")
 # pmap(params1,.progress = TRUE,
 future_pmap(params1, .progress = TRUE,
