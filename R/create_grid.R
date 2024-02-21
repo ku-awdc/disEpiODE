@@ -35,7 +35,9 @@ create_grid <- function(landscape,
   stopifnot(
     "not implemented" = missing(offset),
     "either provide `n` or `cellarea`, not both" =
-      xor(is.null(n), is.null(cellarea))
+      xor(is.null(n), is.null(cellarea)),
+    "`middle` doesn't work together with `n`" = (!middle && !is.null(n)) ||
+      middle && is.null(n)
   )
 
   if (!is.null(cellarea)) {
