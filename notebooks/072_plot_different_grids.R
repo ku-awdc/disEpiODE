@@ -29,7 +29,7 @@ all_buffers <-
 
 #' Multiple grids represented
 #'
-common_area <- 1 / 144
+common_area <- 1 / 42
 
 bind_rows(
   # triangle = create_grid(landscape_sf, n = 24, celltype = "triangle"),
