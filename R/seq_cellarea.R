@@ -1,10 +1,12 @@
+#TODO: `seq_cellarea` returns cellareas
+
 #' Generate `cellarea` sequence
 #'
 #' Geometric sequence of `cellarea` used in [create_grid] based
 #' on increasing precision
 #'
 #' @param min_cellarea,max_cellarea Numeric
-#' @param n,precision provide either `n` or `precision`, where `n` entails number of cells between
+#' @param n,precision provide either `n` or `precision`, where `n` entails number of steps between
 #' `min_cellarea` and `max_cellarea`, and `precision` is `(1 - precision)^n` sequence
 #'
 #' @return Sequence of length `n + 1` between `min_cellarea` and `max_cellarea`
@@ -21,28 +23,23 @@ seq_cellarea <- function(precision = NULL, n = NULL, min_cellarea, max_cellarea)
     "either provide `precision` or `n`, but not both or neither"  =
       (is.null(precision) && !is.null(n)) || (!is.null(precision) && is.null(n)),
     "`n` must be greater than 1, and preferably integer" =
-      ((!is.null(n)) && n >= 1) || TRUE, #FIXME: check this
+      ((!is.null(n)) && n >= 1) || is.null(n), #FIXME: check this
     "`precision` must be between 0 and 1" =
-      (!is.null(precision) && 0 <= precision && precision <= 1) || TRUE,
+      (!is.null(precision) && 0 < precision && precision <= 1) ||
+        is.null(precision),
     "`min_cellarea` must be smaller than or equal to `max_cellarea`" =
       min_cellarea <= max_cellarea
   )
+  # max_c = min_c × (1 + precision) ^ n, where n := n_max.
   if (!is.null(precision)) {
-    n <- log(min_cellarea / max_cellarea) / log(1 - precision)
+    n <- log(max_cellarea / min_cellarea) / log(1 + precision)
     n <- floor(n)
   } else if (!is.null(n)) {
-    # min_cellarea * (1 - precision) ** n # n == 0, so this doesn't work
-    # instead:
-    # max_cellarea = min_cellarea * (1 - precision) ** n
-    # max_cellarea / min_cellarea = (1 - precision) ** n
-    # (max_cellarea / min_cellarea)**(1/n) = (1 - precision)
-    # 1 - (max_cellarea / min_cellarea)**(1/n) = precision
-    precision <- 1 - (max_cellarea / min_cellarea)**(1/n)
-
+    precision <- (max_cellarea / min_cellarea)**(1 / n) - 1
   } else {
     stop("must provide either `n` or `precision`")
   }
-  min_cellarea * (1 - precision) ** (0:n)
+  min_cellarea * (1 + precision) ** (0:n)
 }
 
 #TODO: Make a seq_cellarea that takes function(n_min_cells, n_max_cells, by)
