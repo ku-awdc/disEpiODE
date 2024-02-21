@@ -89,7 +89,8 @@ rough_optim <- function(pars = c(sigma_exp, sigma_half_normal),
   buffer_radius <- 0.15
   buffer_offset_percent <- 0.2
   source_target <-
-    get_buffer_source_target(landscape_width = 1,
+    get_buffer_source_target(
+      landscape_width = 1,
       landscape_height = 1,
       buffer_radius = buffer_radius,
       buffer_offset_percent = buffer_offset_percent)
@@ -241,8 +242,7 @@ rough_optim <- function(pars = c(sigma_exp, sigma_half_normal),
   # VALIDATION
   # isSymmetric(dist_grid)
 
-  # kernel(d) = 1 / (1 + d)
-  # beta_mat_inverse <- beta_baseline * (1/(1 + dist_grid))
+  # kernel(d) = 1 / (1 + sigma×d)
   beta_mat_inverse <- beta_baseline * inv_sigma(dist_grid, sigma = sigma_inv)
   stopifnot(all(is.finite(beta_mat_inverse)))
   diag(beta_mat_inverse) %>% unique() %>% {
