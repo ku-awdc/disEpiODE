@@ -14,7 +14,7 @@ library(furrr)
 
 tag <- "076" # REMEMBER TO SET THIS
 post_tag <- "final_draft" # REMEMBER TO SET THIS
-fs::dir_create("output/{post_tag}" %>% glue())
+fs::dir_create(glue("output/{post_tag}"))
 
 
 world_scale <- 1
@@ -35,7 +35,7 @@ params1 <- tidyr::expand_grid(
   # resolution in terms of area, and point (centroid) density.
   cellarea = c(NA, seq_cellarea(n = 150, min_cellarea = 1 / 2000, max_cellarea = 1)),
   # n_cells = NA,
-  n_cells = c(NA, seq.default(from = 1, to = 70, by = 1)),
+  n_cells = c(NA, seq.default(from = 1, to = floor(sqrt(2000)), by = 5)),
   celltype = c("triangle", "square", "hexagon"),
   middle = c(FALSE)
   # celltype = c("square"),
