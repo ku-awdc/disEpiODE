@@ -143,7 +143,8 @@ create_grid <- function(landscape,
                             n = n,
                             square = FALSE,
                             what = "polygons"
-               )
+               ) %>%
+                 st_intersection(landscape, dimensions = "polygon")
              }
            },
            hexagon_rot = {
