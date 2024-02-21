@@ -1,4 +1,5 @@
 
+devtools::load_all()
 
 inv_sigma <- function(distance, sigma = 1) {
   1 / (sigma * distance + 1)
