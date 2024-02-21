@@ -10,7 +10,7 @@ seq_cellarea(precision = NULL, n = NULL, min_cellarea, max_cellarea)
 seq_cells(n_min_cells, n_max_cells, ...)
 }
 \arguments{
-\item{n, precision}{provide either \code{n} or \code{precision}, where \code{n} entails number of cells between
+\item{n, precision}{provide either \code{n} or \code{precision}, where \code{n} entails number of steps between
 \code{min_cellarea} and \code{max_cellarea}, and \code{precision} is \code{(1 - precision)^n} sequence}
 
 \item{min_cellarea, max_cellarea}{Numeric}
