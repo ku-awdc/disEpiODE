@@ -8,7 +8,7 @@
 library(disEpiODE)
 
 library(future)
-# plan(multisession(workers = 10))
+# future::plan(future::multisession(workers = 10))
 # future::plan(future::multisession(workers = 4))
 library(furrr)
 
@@ -303,7 +303,7 @@ future_pmap(params1, .progress = TRUE,
 
               # region: exp
 
-              # kernel(d) = exp(-sigma×d)
+              # kernel(d) = exp(-sigma × d)
 
               beta_mat_exp <- beta_baseline * exp_sigma(dist_grid, sigma = sigma_exp)
 
@@ -363,6 +363,23 @@ future_pmap(params1, .progress = TRUE,
                 output$tau <- tau_model_output[2, 1]
                 result[[glue("output_{beta_mat_name}_tau")]] <- output
                 result[[glue("output_{beta_mat_name}_tau_state")]] <- tau_model_output
+
+                # save a model you can run with a given end time T
+                build_model_function <- function() {
+                  function(end_time) {
+                    rlang::exec(deSolve::ode,
+                                !!!ode_parameters,
+                                hmax = na_as_null(hmax_list[[beta_mat_name]]),
+                                parms = parameter_list %>% append(list(
+                                  beta_mat = beta_mat
+                                )),
+                                # rootfunc = disEpiODE:::find_target_prevalence,
+                                # rootfunc = disEpiODE:::find_middle_prevalence,
+                                times = c(0, end_time))
+                  }
+                }
+                current_ode_model <- build_model_function()
+                result[[glue("output_ode_model")]] <- current_ode_model
 
                 prevalence_at_tau <-
                   tau_model_output[
