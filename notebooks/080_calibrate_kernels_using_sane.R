@@ -1,16 +1,16 @@
 
 
-devtools::load_all(reset = FALSE)
+# devtools::load_all(reset = FALSE)
 
 # total_cells <- 250
-total_cells <- 500
-total_cells <- 750
+# total_cells <- 500
+# total_cells <- 750
 # total_cells <- 1200
 # total_cells <- 2000
-beta_baseline <- 0.000001
-beta_baseline <- 0.000001
-beta_baseline <- 0.005
-beta_mat_list <- c("inverse", "half_normal", "exp")
+# beta_baseline <- 0.000001
+# beta_baseline <- 0.000001
+beta_baseline <- 0.05
+beta_mat_list <- c("inverse", "exp", "half_normal")
 remove_within_patch_transmission <- FALSE
 
 #' Define unit landscape
@@ -36,7 +36,7 @@ p_landscape
 # square_big_grid <- create_grid(landscape_sf, n = 250,  celltype = "square")
 #NOTE: not used later on
 square_big_grid <- create_grid(landscape_sf, n = floor(sqrt(total_cells)),
-    celltype = "square")
+                               celltype = "square")
 
 square_big_grid
 
@@ -95,7 +95,7 @@ rough_optim <- function(pars = c(sigma_exp, sigma_half_normal),
       buffer_radius = buffer_radius,
       buffer_offset_percent = buffer_offset_percent)
   middle_buffer <- get_middle_buffer(source_target = source_target,
-    buffer_radius = buffer_radius)
+                                     buffer_radius = buffer_radius)
 
   all_buffers <-
     rbind(source_target, middle_buffer) %>%
@@ -103,20 +103,18 @@ rough_optim <- function(pars = c(sigma_exp, sigma_half_normal),
   # world_area <- st_area(world_landscape)
 
   grid <- create_grid(landscape_sf,
-    n = floor(sqrt(total_cells)),
-    celltype = "square",
-    #middle is not defined when perfect tessellation is used
-    middle = stop("unimplemented?"))
+                      n = floor(sqrt(total_cells)),
+                      celltype = "square")
   grid
   p_landscape +
     geom_sf(data = grid, fill = NA) +
     geom_sf_text(aes(label = "🐷", geometry = buffer_point),
-      size = 10,
-      data = all_buffers) +
+                 size = 10,
+                 data = all_buffers) +
     geom_sf(data = all_buffers,
-      aes(geometry = buffer_polygon, color = label),
-      linewidth = 1,
-      fill = NA) +
+            aes(geometry = buffer_polygon, color = label),
+            linewidth = 1,
+            fill = NA) +
     theme(
       axis.title = element_blank(),
       legend.position = "bottom",
@@ -128,16 +126,16 @@ rough_optim <- function(pars = c(sigma_exp, sigma_half_normal),
   grid$carry <- st_area(grid$geometry)
 
   y_init <- c(S = grid$carry,
-    I = numeric(length(grid$carry)))
+              I = numeric(length(grid$carry)))
   # THREE APPROACH
 
   all_buffers_overlap_map <-
     st_intersection(y = grid, all_buffers %>%
-        `st_geometry<-`("buffer_polygon")) %>%
+                      `st_geometry<-`("buffer_polygon")) %>%
     transmute(label, id_overlap = id,
-      #after intersection, the `buffer_polygon` is a
-      # `cell_polygon` that overlaps with `buffer_polygon`
-      weight = st_area(buffer_polygon) / buffer_area) %>%
+              #after intersection, the `buffer_polygon` is a
+              # `cell_polygon` that overlaps with `buffer_polygon`
+              weight = st_area(buffer_polygon) / buffer_area) %>%
     st_drop_geometry() %>%
     # normalize weights
     # mutate(.by = label, weight = weight / sum(weight)) %>%
@@ -168,7 +166,7 @@ rough_optim <- function(pars = c(sigma_exp, sigma_half_normal),
     y_init[nrow(grid) + source_overlap$id_overlap]
 
   stopifnot("seeding mass of susceptible & infected must total carrying capacity" =
-      isTRUE(all.equal(sum(y_init), sum(grid$carry)))
+              isTRUE(all.equal(sum(y_init), sum(grid$carry)))
   )
 
   # VALIDATION
@@ -195,9 +193,23 @@ rough_optim <- function(pars = c(sigma_exp, sigma_half_normal),
     ynames = FALSE
   )
 
+
+  # region: inverse
+
+  # VALIDATION
+  # isSymmetric(dist_grid)
+
+  # kernel(d) = 1 / (1 + sigma × d)
+  beta_mat_inverse <- beta_baseline * inv_sigma(dist_grid, sigma = sigma_inv)
+  stopifnot(all(is.finite(beta_mat_inverse)))
+  diag(beta_mat_inverse) %>% unique() %>% {
+    stopifnot(isTRUE(all.equal(., beta_baseline)))
+  }
+  # endregion
+
   # region: exp
 
-  # kernel(d) = exp(-d)
+  # kernel(d) = exp(-sigma d)
 
   beta_mat_exp <- beta_baseline * exp_sigma(dist_grid, sigma = sigma_exp)
 
@@ -211,7 +223,7 @@ rough_optim <- function(pars = c(sigma_exp, sigma_half_normal),
 
   # region: half-normal
 
-  # kernel(d) = 2×pdf(mean = 0, sd = mean_formula(1))
+  # kernel(d) = ???
 
   # dist_grid_half_normal <- dist_grid
   # diag(dist_grid_half_normal) <- 0
@@ -236,33 +248,7 @@ rough_optim <- function(pars = c(sigma_exp, sigma_half_normal),
 
   # endregion
 
-
-  # region: inverse
-
-  # VALIDATION
-  # isSymmetric(dist_grid)
-
-  # kernel(d) = 1 / (1 + sigma × d)
-  beta_mat_inverse <- beta_baseline * inv_sigma(dist_grid, sigma = sigma_inv)
-  stopifnot(all(is.finite(beta_mat_inverse)))
-  diag(beta_mat_inverse) %>% unique() %>% {
-    stopifnot(isTRUE(all.equal(., beta_baseline)))
-  }
   all_beta_mat$inverse <- beta_mat_inverse
-
-  # region: scaled inverse
-  # choices <- c(0.4049956, 0.2700693);
-  # scaled_d <- choices[1]
-
-  # kernel(d) = 1 / (1 + d / scaled_d)
-  # beta_mat_scaled_inverse <- beta_baseline * (1/(1 + dist_grid / scaled_d))
-  # stopifnot(all(is.finite(beta_mat_scaled_inverse)))
-  # diag(beta_mat_scaled_inverse) %>% unique() %>% {
-  # stopifnot(isTRUE(all.equal(., beta_baseline)))
-  # }
-  # all_beta_mat$scaled_inverse <- beta_mat_scaled_inverse
-
-  # endregion
 
   #FIXME: all the `beta_mat`s are being calculated even if they
   # are not needed 🤷
@@ -272,6 +258,7 @@ rough_optim <- function(pars = c(sigma_exp, sigma_half_normal),
   stopifnot(all(names(beta_mat_list %in% names(all_beta_mat))))
 
   result <- list()
+
   for (beta_mat_name in beta_mat_list) {
 
     beta_mat = all_beta_mat[[beta_mat_name]]
@@ -281,14 +268,14 @@ rough_optim <- function(pars = c(sigma_exp, sigma_half_normal),
 
     tau_model_output <-
       rlang::exec(deSolve::ode,
-        !!!ode_parameters,
-        # hmax = na_as_null(hmax_list[[beta_mat_name]]),
-        parms = parameter_list %>% append(list(
-          beta_mat = beta_mat
-        )),
-        # rootfunc = disEpiODE:::find_target_prevalence,
-        rootfunc = disEpiODE:::find_middle_prevalence,
-        times = c(0, Inf))
+                  !!!ode_parameters,
+                  # hmax = na_as_null(hmax_list[[beta_mat_name]]),
+                  parms = parameter_list %>% append(list(
+                    beta_mat = beta_mat
+                  )),
+                  # rootfunc = disEpiODE:::find_target_prevalence,
+                  rootfunc = disEpiODE:::find_middle_prevalence,
+                  times = c(0, Inf))
     output <- list()
     output$rstate <- deSolve::diagnostics(tau_model_output)$rstate
     #TODO: check if tau exists
@@ -307,16 +294,23 @@ rough_optim <- function(pars = c(sigma_exp, sigma_half_normal),
 
     result[[glue("output_{beta_mat_name}_prevalence")]] <- list(prevalence_at_tau)
   }
+  # structure(
+  #   list(
+  #     grid = grid,
+  #     output = result
+  #   )
+  # )
 
-  tibble(distance = seq.default(0, 2, by = 0.01),
-    kernel_inv = inv_sigma(distance, sigma = sigma_inv),
-    kernel_exp = exp_sigma(distance, sigma = sigma_exp),
-    kernel_half_normal = half_normal_sigma(distance, sigma = sigma_half_normal),
+
+  tibble(distance = seq.default(0, 1, length.out = 200),
+         kernel_inv = inv_sigma(distance, sigma = sigma_inv),
+         kernel_exp = exp_sigma(distance, sigma = sigma_exp),
+         kernel_half_normal = half_normal_sigma(distance, sigma = sigma_half_normal),
   ) %>%
     pivot_longer(starts_with("kernel"),
-      names_to = c("kernel"),
-      names_pattern = "kernel_(.*)",
-      values_to = "weight") %>%
+                 names_to = c("kernel"),
+                 names_pattern = "kernel_(.*)",
+                 values_to = "weight") %>%
     ggplot() +
     aes(x = distance, y = weight, group = kernel) +
     geom_line(aes(color = kernel)) +
@@ -338,6 +332,7 @@ rough_optim <- function(pars = c(sigma_exp, sigma_half_normal),
 sigma_inv <- 100
 sigma_exp <- 7.24
 sigma_half_normal <- 0.13494
+beta_baseline <- 0.5
 rough_optim(c(sigma_exp, sigma_half_normal), sigma_inv, 750, TRUE)
 
 rough_optim(c(sigma_exp, sigma_half_normal), sigma_inv, 500, TRUE)
@@ -345,7 +340,7 @@ rough_optim(c(sigma_exp, sigma_half_normal), sigma_inv, 750, TRUE)
 rough_optim(c(sigma_exp, sigma_half_normal), sigma_inv, 1000, TRUE)
 rough_optim(c(sigma_exp, sigma_half_normal), sigma_inv, 2000, TRUE)
 rough_optim(c(sigma_exp, sigma_half_normal), sigma_inv, 5000, TRUE)
-rough_optim(c(sigma_exp, sigma_half_normal), sigma_inv, 10000, TRUE)
+# rough_optim(c(sigma_exp, sigma_half_normal), sigma_inv, 10000, TRUE)
 
 
 ### NOTE: `dist_grid` for optim will be based on the last-run total_cells for rough_optim
@@ -360,8 +355,8 @@ optim(
   ),
   # method = "L-BFGS-B",
   # lower = 0,
-  c(exp = 7.24, half_normal = 0.13494), fn = function(sigma_vec) {
-    sigma_inv <- 100
+  c(exp = sigma_exp, half_normal = sigma_half_normal), fn = function(sigma_vec) {
+    sigma_inv <- sigma_inv
     sigma_exp <- sigma_vec[1]
     sigma_half_normal <- sigma_vec[2]
     if (any(sigma_vec <= 0) ||
@@ -372,13 +367,12 @@ optim(
     }
 
     all_beta_mat <- list()
-
     # region: inverse
 
     # VALIDATION
     # isSymmetric(dist_grid)
 
-    # kernel(d) = 1 / (1 + d)
+    # kernel(d) = 1 / (1 + sigma * d)
     # beta_mat_inverse <- beta_baseline * (1/(1 + dist_grid))
     beta_mat_inverse <- beta_baseline * inv_sigma(dist_grid, sigma = sigma_inv)
     stopifnot(all(is.finite(beta_mat_inverse)))
@@ -389,11 +383,9 @@ optim(
 
     # endregion
 
-
-
     # region: exp
 
-    # kernel(d) = exp(-d)
+    # kernel(d) = exp(-sigma * sd)
 
     beta_mat_exp <- beta_baseline * exp_sigma(dist_grid, sigma = sigma_exp)
 
@@ -407,21 +399,11 @@ optim(
 
     # region: half-normal
 
-    # kernel(d) = 2×pdf(mean = 0, sd = mean_formula(1))
+    # kernel(d) = ???
 
-    # dist_grid_half_normal <- dist_grid
-    # diag(dist_grid_half_normal) <- 0
     beta_mat_half_normal <- beta_baseline *
       half_normal_sigma(dist_grid, sigma = sigma_half_normal)
-    # beta_mat_half_normal <- beta_baseline *
-    #   half_normal_param_kernel(dist_grid, 1.312475, -1.560466, 3.233037)
-    # diag(beta_mat_half_normal) <- beta_baseline
 
-    # this test fails, but
-    # > half_normal_param_kernel(0, 1.312475, -1.560466, 3.233037)
-    # [1] 0.9999617
-    # and it should exactly 1
-    #
     diag(beta_mat_half_normal) %>% unique() %>% {
       stopifnot(isTRUE(all.equal(., beta_baseline)))
     }
@@ -481,6 +463,22 @@ dim(dist_grid)
 
 # last_result$all_beta_mat <- last_result$beta_mat_list
 
+list(
+  beta_baseline = beta_baseline,
+  inv = sigma_inv,
+  exp = result_optim$par[[1]],
+  half_normal = result_optim$par[[2]],
+  tau_inv = last_tau_result[[1]],
+  tau_exp = last_tau_result[[2]],
+  tau_half_normal = last_tau_result[[3]]
+)
+
+glue("
+  beta_baseline = {beta_baseline},
+  sigma_inv = {sigma_inv},
+  sigma_exp = {result_optim$par[[1]]},
+  sigma_half_normal = {result_optim$par[[2]]},
+")
 # $par
 # inv         exp half_normal
 # 1.1077747   0.8734435   0.5449831
@@ -490,6 +488,7 @@ last_tau_result
 # inv.time         exp.time half_normal.time
 # 100.6522         100.6522         100.6522
 
+message("Print zero entries in the beta-matrix")
 last_result$all_beta_mat %>%
   lapply(
     . %>% zapsmall() %>% Matrix::Matrix(sparse = TRUE)
@@ -499,17 +498,11 @@ last_result$all_beta_mat %>%
     \(x) prod(dim(x)) - Matrix::nnzero(x)
   )
 
-# uniroot(
-#   \(x) inv_sigma(x, sigma = result_optim$par[1]),
-#   lower = 0, upper = 1
-#   # interval = c(0, Inf)
-#   # lower = 0, upper = Inf, f.lower = 1
-# )
 
-tibble(distance = seq.default(0, 1, by = 0.2),
-       kernel_inv = inv_sigma(distance, sigma = result_optim$par[1]),
-       kernel_exp = exp_sigma(distance, sigma = result_optim$par[2]),
-       kernel_half_normal = half_normal_sigma(distance, sigma = result_optim$par[3]),
+tibble(distance = seq.default(0, 1, length.out = 200),
+       kernel_inv = inv_sigma(distance, sigma = sigma_inv),
+       kernel_exp = exp_sigma(distance, sigma = result_optim$par[1]),
+       kernel_half_normal = half_normal_sigma(distance, sigma = result_optim$par[2]),
 ) %>%
   pivot_longer(starts_with("kernel"),
                names_to = c("kernel"),
@@ -521,3 +514,6 @@ tibble(distance = seq.default(0, 1, by = 0.2),
   theme_blank_background() +
   theme(legend.position = "bottom") +
   NULL
+
+
+beepr::beep()

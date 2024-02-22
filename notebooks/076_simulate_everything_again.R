@@ -26,7 +26,11 @@ short_range_kernels <- FALSE
 
 params1 <- tidyr::expand_grid(
   world_scale = world_scale,
-  beta_baseline = c(0.005),
+  # beta_baseline = c(0.005),
+  beta_baseline = 0.5,
+  sigma_inv = 100,
+  sigma_exp = 12.6161672832572,
+  sigma_half_normal = 0.0845580197025075,
   buffer_offset_percent = 0.2,
   buffer_radius = 0.15,
   #TODO: make sure to calculate `cellarea` in the below plot, and
@@ -45,7 +49,7 @@ params1 <- tidyr::expand_grid(
   # hmax = c(NA, 0.25)
   # hmax = c(0.25)
 ) %>%
-  #TODO / FIXME: Only keep rows with either `n_cells` or `cellarea`, not both!
+  # Only keep rows with either `n_cells` or `cellarea`, not both!
   dplyr::filter(
     # either perfect tessellation or fractured border
     xor(is.na(n_cells), is.na(cellarea)),
@@ -91,26 +95,26 @@ half_normal_sigma <- function(distance, sigma = 1) {
   exp(-distance ** 2 / (2 * sigma ** 2))
 }
 #' These are calibrations found in 071
-if (short_range_kernels) {
-  #' Short-range kernel calibrations
-  sigma_inv <- 100
-  sigma_exp <- 12.6
-  sigma_half_normal <- 0.085
-} else {
-  #' Long range kernel calibrations
-  sigma_inv <- 30
-  sigma_exp <- 7.25
-  sigma_half_normal <- 0.135
-}
+#' if (short_range_kernels) {
+#'   #' Short-range kernel calibrations
+#'   sigma_inv <- 100
+#'   sigma_exp <- 12.6
+#'   sigma_half_normal <- 0.085
+#' } else {
+#'   #' Long range kernel calibrations
+#'   sigma_inv <- 30
+#'   sigma_exp <- 7.25
+#'   sigma_half_normal <- 0.135
+#' }
 
-stopifnot(
-  inv_sigma(0) == 1,
-  exp_sigma(0) == 1,
-  half_normal_sigma(0) == 1,
-  inv_sigma(0, sigma = sigma_inv) == 1,
-  exp_sigma(0, sigma = sigma_exp) == 1,
-  half_normal_sigma(0, sigma = sigma_half_normal) == 1
-)
+# stopifnot(
+#   inv_sigma(0) == 1,
+#   exp_sigma(0) == 1,
+#   half_normal_sigma(0) == 1,
+#   inv_sigma(0, sigma = sigma_inv) == 1,
+#   exp_sigma(0, sigma = sigma_exp) == 1,
+#   half_normal_sigma(0, sigma = sigma_half_normal) == 1
+# )
 
 
 # beta_mat_list <- c("inverse", "scaled_inverse", "half_normal", "exp")
@@ -128,7 +132,8 @@ celltype_levels <- c("triangle", "square", "hexagon")
 # pmap(params1,.progress = TRUE,
 future_pmap(params1, .progress = TRUE,
             \(world_scale, beta_baseline, buffer_offset_percent, buffer_radius,
-              cellarea, n_cells, celltype, middle, hmax, mode) {
+              cellarea, n_cells, celltype, middle, hmax, mode,
+              sigma_inv, sigma_exp, sigma_half_normal) {
               #FIXME: `mode` is unused, and needs to be removed "later"
 
               #TODO: codify this somehow ??
@@ -151,8 +156,7 @@ future_pmap(params1, .progress = TRUE,
 
               all_buffers <-
                 rbind(source_target, middle_buffer) %>%
-                mutate(label = factor(label, c("source", "middle", "target"),
-                                      labels = c("source", "target", "secondary")))
+                mutate(label = fct(label, c("source", "middle", "target")))
               world_area <- st_area(world_landscape)
               # browser()
               grid <- create_grid(landscape = world_landscape,
@@ -365,21 +369,21 @@ future_pmap(params1, .progress = TRUE,
                 result[[glue("output_{beta_mat_name}_tau_state")]] <- tau_model_output
 
                 # save a model you can run with a given end time T
-                build_model_function <- function() {
-                  function(end_time) {
+                build_model_function <- function(ode_parameters, hmax, parameter_list, beta_mat) {
+                  function(times) {
                     rlang::exec(deSolve::ode,
                                 !!!ode_parameters,
-                                hmax = na_as_null(hmax_list[[beta_mat_name]]),
+                                hmax = na_as_null(hmax),
                                 parms = parameter_list %>% append(list(
                                   beta_mat = beta_mat
                                 )),
                                 # rootfunc = disEpiODE:::find_target_prevalence,
                                 # rootfunc = disEpiODE:::find_middle_prevalence,
-                                times = c(0, end_time))
+                                times = times)
                   }
                 }
-                current_ode_model <- build_model_function()
-                result[[glue("output_ode_model")]] <- current_ode_model
+                current_ode_model <- build_model_function(ode_parameters, hmax_list[[beta_mat_name]], parameter_list, beta_mat)
+                result[[glue("output_ode_model")]][[beta_mat_name]] <- current_ode_model
 
                 prevalence_at_tau <-
                   tau_model_output[
@@ -402,6 +406,16 @@ future_pmap(params1, .progress = TRUE,
             }) ->
   #TODO: rename this
   tau_rstate
+#'
+#'
+#' Cache the results
+output_rds_file <- glue("output/{post_tag}/output.rds")
+if (fs::file_exists(output_rds_file)) {
+  message("Please, manually save the newly generated results")
+} else {
+  message("Saving results to disk")
+  readr::write_rds(x = tau_rstate, file = output_rds_file)
+}
 
 tau_rstate %>%
   glimpse(max.level = 2)
@@ -410,6 +424,19 @@ tau_rstate %>% lengths()
 tau_rstate %>% names()
 tau_rstate[] %>% names()
 tau_rstate[[1]] %>% names()
+
+tau_rstate %>%
+  enframe() %>%
+  unnest_wider(value, names_sep = "_") %>%
+  select(name, grid = value_grid, ends_with("value_output")) %>%
+  unnest_wider(value_output) %>%
+  # select(name, grid, ends_with("tau_state")) %>%
+
+
+  bind_cols(params1) %>%
+
+
+  glimpse()
 
 state_at_tau <-
   tau_rstate %>%
@@ -451,11 +478,6 @@ state_at_tau <-
 #   `[[`(1) %>%
 #   `[`(1, 1 + 32 + (1:32))
 seed_infection_df <- state_at_tau %>%
-  # hack to get number of cells `n_cells`
-  # mutate(n_cells = map_int(tau, . %>% colnames() %>%
-  #                            str_remove_all(pattern = "\\D+") %>%
-  #                            as.numeric() %>% max(na.rm = TRUE)),
-  #        #alternative to `n_cells`
   mutate(
     seed_infection_mass =
       map2_dbl(tau, n_cells,
@@ -576,12 +598,6 @@ tau_rstate %>%
   ) %>%
   mutate(beta_mat = factor(beta_mat, kernel_levels),
          celltype = factor(celltype, celltype_levels),
-         #TODO: reenable this?
-         # cellarea = if_else(
-         #   is.na(cellarea),
-         #   # map_dbl(grid, . %>% st_area() %>% unique())), # numeric
-         #   map_dbl(grid, . %>% st_area() %>% max()),
-         #   cellarea),
          n_cells_set = n_cells,
          n_cells = map_int(grid, nrow)
   ) %>%
@@ -589,6 +605,8 @@ tau_rstate %>%
   identity() -> tau_plot_data
 
 tau_plot_data %>%
+  # dplyr::filter(n_cells >= 35) %>%
+
   group_by(beta_mat) %>%
 
   group_map(\(data, group_id) {
@@ -599,15 +617,12 @@ tau_plot_data %>%
       aes(cellarea, tau) +
       geom_step(aes(color = celltype)) +
 
-      # ggplot2::sec_axis()
-
-      # scale_x_log10_rev(limits = c(30, NA)) +
-      # lims(x = c(NA, 10)) +
       labs(color = "Shape") +
-      coord_cartesian(xlim = c(30, NA)) +
       scale_x_log10_rev() +
       theme_reverse_arrow_x() +
+
       theme_blank_background() +
+      theme(legend.position = "bottom") +
       theme(text = element_text(size = 20)) +
       theme(strip.text = element_text(size = 15),
             legend.title = element_text(size = 15),
@@ -615,13 +630,17 @@ tau_plot_data %>%
             legend.text = element_text(size = 12)) +
       guides(color = guide_legend(override.aes = list(linewidth = 2))) +
 
-      labs(caption = glue("Kernel form: {beta_mat}")) +
+      labs(caption = glue("Kernel form: {beta_mat}"),
+           y = expression(tau),
+           x = "Set cellarea",
+           color = NULL)  +
 
       NULL
   })
 
 
 tau_plot_data %>%
+  #dplyr::filter(n_cells >= 35) %>%
   group_by(celltype) %>%
 
   group_map(\(data, group_id) {
@@ -632,7 +651,10 @@ tau_plot_data %>%
       aes(cellarea, tau) +
       geom_step(aes(color = beta_mat)) +
       labs(color = "Kernel") +
-      coord_cartesian(xlim = c(NA, 30)) +
+
+      scale_x_log10_rev() +
+      theme_reverse_arrow_x() +
+
       theme_blank_background() +
       theme(text = element_text(size = 20)) +
       theme(strip.text = element_text(size = 15),
@@ -641,7 +663,10 @@ tau_plot_data %>%
             legend.text = element_text(size = 12)) +
       guides(color = guide_legend(override.aes = list(linewidth = 2))) +
 
-      labs(caption = glue("Shape: {celltype}")) +
+      theme(legend.position = "bottom") +
+      labs(caption = glue("Shape: {celltype}"),
+           y = expression(tau), x = "Set cellarea",
+           color = NULL) +
 
       NULL
   })
@@ -654,12 +679,7 @@ output_prevalence_at_tau <-
   bind_cols(params1) %>%
 
   mutate(
-    #TODO: re-enable this?
-    # cellarea = if_else(
-    #   is.na(cellarea),
-    #   # map_dbl(grid, . %>% st_area() %>% unique())), # numeric
-    #   map_dbl(grid, . %>% st_area() %>% zapsmall() %>% unique()),
-    #   cellarea),
+    cellarea_set = cellarea,
     n_cells_set = n_cells,
     n_cells = map_int(grid, nrow)
   ) %>%
@@ -680,6 +700,8 @@ output_prevalence_at_tau <-
 
 output_prevalence_at_tau %>%
 
+  # dplyr::filter(n_cells >= 50) %>%
+
   pivot_longer(
     contains("prevalence"),
     names_to = c("kernel", "prevalence_level"),
@@ -689,7 +711,7 @@ output_prevalence_at_tau %>%
 
   identity() %>%
   mutate(kernel = factor(kernel, kernel_levels)) %>%
-  dplyr::filter(prevalence_level != "target") %>%
+  # dplyr::filter(prevalence_level != "target") %>%
 
   group_by(kernel)  %>%
   group_map(\(data, kernel) {
@@ -705,7 +727,7 @@ output_prevalence_at_tau %>%
       # lims(x = c(4, NA)) +
       # expand_limits(y = 1) +
       #
-      coord_cartesian(xlim = c(30, NA)) +
+      # coord_cartesian(xlim = c(30, NA)) +
 
       labs(caption = glue("Kernel form: {kernel_name}")) +
       theme(strip.text = element_text(size = 20),
