@@ -34,8 +34,8 @@ params1 <- tidyr::expand_grid(
   # compare between `square` and `triangle`, as same choice of `n` leads to different
   # resolution in terms of area, and point (centroid) density.
   cellarea = c(NA, seq_cellarea(n = 150, min_cellarea = 1 / 2000, max_cellarea = 1)),
-  # n_cells = NA,
-  n_cells = c(NA, seq.default(from = 1, to = floor(sqrt(2000)), by = 5)),
+  n_cells = NA,
+  # n_cells = c(NA, seq.default(from = 1, to = floor(sqrt(2000)), by = 5)),
   celltype = c("triangle", "square", "hexagon"),
   middle = c(FALSE)
   # celltype = c("square"),
