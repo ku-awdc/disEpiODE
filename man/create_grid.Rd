@@ -9,6 +9,7 @@ create_grid(
   cellarea = NULL,
   n = NULL,
   middle = FALSE,
+  center_as_centroid = FALSE,
   celltype = c("square", "hexagon", "hexagon_rot", "triangle", "triangulate_constrained"),
   offset = c("corner", "middle", "bottom", "left")
 )
