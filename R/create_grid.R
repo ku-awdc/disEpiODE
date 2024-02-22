@@ -103,9 +103,9 @@ create_grid <- function(landscape,
                  if (center_as_centroid) {
                    # landscape_center = st_centroid(landscape)
                    dist_center <-
-                     landscape %>% 
-                     st_centroid() %>% 
-                     st_distance(st_point(c(0,0))) %>% 
+                     landscape %>%
+                     st_centroid() %>%
+                     st_distance(st_point(c(0,0))) %>%
                      `[`(1,1)
                    cellsize <- sqrt(c(cellarea, cellarea))
                    celldiagonal <- sqrt(sum(cellsize**2))
@@ -154,7 +154,7 @@ create_grid <- function(landscape,
              # => cellsize = sqrt(2×area / sqrt(3))
              stopifnot("`middle` not implemented" = !middle)
              if (!is.null(cellarea)) {
-              stopifnot("TODO" = center_as_centroid)
+              stopifnot("TODO" = !center_as_centroid)
                cellsize <- sqrt((2 * cellarea) / sqrt(3))
                # NOTE: see `sf:::make_hex_grid` for more details
                st_make_grid(landscape,
@@ -173,7 +173,7 @@ create_grid <- function(landscape,
              }
            },
            hexagon_rot = {
-             stopifnot("TODO" = center_as_centroid)
+             stopifnot("TODO" = !center_as_centroid)
              stopifnot("`middle` not implemented" = !middle)
              if (!is.null(cellarea)) {
                cellsize <- sqrt((2 * cellarea) / 3 * sqrt(3))
@@ -193,7 +193,7 @@ create_grid <- function(landscape,
            triangle = {
              square_grid <-
                if (is.null(n)) {
-                 stopifnot("TODO" = center_as_centroid)
+                 stopifnot("TODO" = !center_as_centroid)
                  # this means that is.null(cellarea) == FALSE
                  cellsize <- sqrt(c(2 * cellarea, 2 * cellarea))
 
@@ -250,7 +250,7 @@ create_grid <- function(landscape,
              # stopifnot("`middle` not implemented" = !middle)
 
              if (!is.null(cellarea)) {
-              stopifnot("TODO" = center_as_centroid)
+              stopifnot("TODO" = !center_as_centroid)
                # cellsize <- rep(sqrt(cellarea * 2L), 2L)
                if (middle) {
                  # push cells to the middle
