@@ -414,10 +414,13 @@ future_pmap(params1, .progress = TRUE,
 output_rds_file <- glue("output/{post_tag}/output.rds")
 if (fs::file_exists(output_rds_file)) {
   message("Please, manually save the newly generated results")
+  message("Or load the saved file if appropriate")
 } else {
   message("Saving results to disk")
   readr::write_rds(x = tau_rstate, file = output_rds_file)
 }
+# Load saved file
+# tau_rstate <- read_rds(output_rds_file)
 
 tau_rstate %>%
   glimpse(max.level = 2)
@@ -909,14 +912,62 @@ tau_hfirst_df %>%
 
 #' Produce simulation trajectory plot
 #'
+
 tau_rstate %>%
   enframe() %>%
   unnest_wider(value) %>%
   unnest_wider(output) %>%
-  select(name, output_ode_model) %>%
-  # unnest_wider(output_ode_model)
+  mutate(across(ends_with("_tau"), . %>% map_dbl(. %>% `[[`("tau")))) %>%
+  bind_cols(params1 %>% select(celltype)) %>%
+  summarise(
+    .by = celltype,
+    across(ends_with("_tau"),
+           list(min = min,
+                mean = mean, median = median, sd = sd,
+                max = max))) %>%
+  glimpse() %>%
+  pivot_longer(
+    starts_with("output"),
+    names_to = c("kernel", "metric"),
+    names_pattern = "output_(\\w+)_tau_(\\w+)") %>%
+  pivot_wider(names_from = metric) %>%
+  identity()
+#'
+ttimes <- seq.default(0, 300, length.out = 200)
+#'
+tau_rstate %>%
+  enframe() %>%
+  unnest_wider(value) %>%
+  unnest_wider(output) %>%
+  mutate(across(ends_with("_tau"), . %>% map_dbl(. %>% `[[`("tau")))) %>%
+  select(name, ends_with("_tau"), output_ode_model) %>%
 
+  #FIXME: this is annoying
+  mutate(output_ode_model = output_ode_model %>%
+           map(. %>% map(list))
+  ) %>%
+  unnest_wider(output_ode_model) %>%
+  bind_cols(params1) %>%
 
+  mutate(
+    inverse_traj = map(.progress = TRUE,
+                       inverse, ~ .x[[1]](ttimes)),
+    exp_traj = map(.progress = TRUE,
+                   exp, ~ .x[[1]](ttimes)),
+    half_normal_traj = map(.progress = TRUE,
+                           half_normal, ~ .x[[1]](ttimes)),
+  ) %>%
+
+  glimpse()
+
+# select(name, output_ode_model) %>%
+#   # unnest_wider(output_ode_model) %>%
+#
+#   bind_cols(params1) -> ode_model_traj_data
+#
+# ode_model_traj_data %>%
+#   group_by(kernel, celltype) %>%
+#   summarise(max(tau))
 
 
 dev.off()
