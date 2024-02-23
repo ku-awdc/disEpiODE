@@ -295,7 +295,6 @@ future_pmap(params1, .progress = TRUE,
               # VALIDATION
               # isSymmetric(dist_grid)
 
-              # kernel(d) = 1 / (1 + d)
               beta_mat_inverse <- beta_baseline * inv_sigma(dist_grid, sigma = sigma_inv)
               stopifnot(all(is.finite(beta_mat_inverse)))
               diag(beta_mat_inverse) %>% unique() %>% {
