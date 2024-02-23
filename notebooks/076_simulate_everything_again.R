@@ -382,6 +382,9 @@ future_pmap(params1, .progress = TRUE,
                   }
                 }
                 current_ode_model <- build_model_function(ode_parameters, hmax_list[[beta_mat_name]], parameter_list, beta_mat)
+                #TODO: Maybe store list(run_model = current_ode_model)
+                # if so, then the storage of this should mimic the other ways outlined here
+                # rest[[glue("output_ode_model_{beta_mat_name})]] <- list(run_model = current_ode_model)
                 result[[glue("output_ode_model")]][[beta_mat_name]] <- current_ode_model
 
                 prevalence_at_tau <-
@@ -903,6 +906,17 @@ tau_hfirst_df %>%
   print() %>%
   # use this to set hmax
   glue_data("{beta_mat} = {prettyNum(zapsmall(observed))},")
+
+#' Produce simulation trajectory plot
+#'
+tau_rstate %>%
+  enframe() %>%
+  unnest_wider(value) %>%
+  unnest_wider(output) %>%
+  select(name, output_ode_model) %>%
+  # unnest_wider(output_ode_model)
+
+
 
 
 dev.off()
