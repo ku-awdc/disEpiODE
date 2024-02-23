@@ -8,7 +8,7 @@
 library(disEpiODE)
 
 library(future)
-# future::plan(future::multisession(workers = 10))
+future::plan(future::multisession(workers = 10))
 # future::plan(future::multisession(workers = 4))
 library(furrr)
 
@@ -449,12 +449,14 @@ state_at_tau <-
   bind_cols(params1) %>%
 
   # because of perfect tessellation, we can extract the actual cellarea
-  mutate(cellarea = if_else(is.na(cellarea),
-                            # map_dbl(grid, . %>% st_area() %>% unique())), # numeric
-                            map_dbl(grid, . %>% st_area() %>% max()),
-                            cellarea),
-         n_cells_set = n_cells,
-         n_cells = map_int(grid, nrow)
+  mutate(
+    cellarea_set = cellarea,
+    cellarea = if_else(is.na(cellarea),
+                       # map_dbl(grid, . %>% st_area() %>% unique())), # numeric
+                       map_dbl(grid, . %>% st_area() %>% max()),
+                       cellarea),
+    n_cells_set = n_cells,
+    n_cells = map_int(grid, nrow)
   ) %>%
 
   pivot_longer(
@@ -480,6 +482,7 @@ seed_infection_df <- state_at_tau %>%
   mutate(
     seed_infection_mass =
       map2_dbl(tau, n_cells,
+               # first is time col, then Susceptible-cells, and finally Infected ones
                \(tau, n_cells) sum(tau[1, 1 + n_cells + (1:n_cells)]))
   ) %>%
   identity()
@@ -494,16 +497,20 @@ seed_infection_df %>%
 seed_infection_df <- seed_infection_df %>%
   mutate(
     I_at_tau = map2(tau, n_cells, \(tau, n_cells) {
+      # time skipped, then susceptibles are skipped, finally infected are captured
       tau[2, 1 + n_cells + (1:n_cells)]
     }),
     S_at_tau = map2(tau, n_cells, \(tau, n_cells) {
+      # time skipped, then susceptibles
       tau[2, 1 + (1:n_cells)]
     }),
     # VALIDATION
     # flag = I_at_tau %>% map_lgl(\(I) all(str_detect(names(I), "I"))) %>% all() %>% stopifnot(),
     # flag = NULL,
     grid =
+      # amend grid with infected
       map2(grid, I_at_tau, \(grid, I) bind_cols(grid, I = I)) %>%
+      # passing grid amended with infected, to amend susceptibles
       map2(S_at_tau, \(grid, S) bind_cols(grid, S = S))
   )
 
@@ -638,6 +645,47 @@ tau_plot_data %>%
   })
 
 
+custom_beta_mat_names <- c(
+  inverse = expression(1/(sigma*d + 1)),
+  exp = expression(exp(-sigma*d)),
+  half_normal = expression(exp(-d ** 2 / (2 * sigma ** 2)))
+)
+custom_beta_mat_names <- custom_beta_mat_names %>%
+  as.character() %>%
+  set_names(c("inverse", "exp", "half_normal"))
+
+tau_plot_data %>%
+
+  ggplot() +
+  aes(group = celltype) +
+  aes(cellarea, tau) +
+  geom_step(aes(color = celltype)) +
+
+  labs(color = "Shape") +
+  scale_x_log10_rev() +
+  theme_reverse_arrow_x() +
+
+  theme_blank_background() +
+  theme(legend.position = "bottom") +
+  theme(text = element_text(size = 20)) +
+  theme(strip.text = element_text(size = 15),
+        legend.title = element_text(size = 15),
+        legend.background = element_blank(),
+        legend.text = element_text(size = 12)) +
+  guides(color = guide_legend(override.aes = list(linewidth = 2))) +
+
+  labs(y = expression(tau),
+       x = "Set cellarea",
+       color = NULL)  +
+
+  facet_wrap(~beta_mat,
+             labeller = labeller(beta_mat = as_labeller(
+               custom_beta_mat_names, label_parsed
+             ))
+  ) +
+  NULL
+
+
 tau_plot_data %>%
   #dplyr::filter(n_cells >= 35) %>%
   group_by(celltype) %>%
@@ -670,6 +718,36 @@ tau_plot_data %>%
       NULL
   })
 
+tau_plot_data %>%
+  ggplot() +
+  aes(group = beta_mat) +
+  aes(cellarea, tau) +
+  geom_step(aes(color = beta_mat)) +
+  labs(color = "Kernel") +
+
+  scale_x_log10_rev() +
+  theme_reverse_arrow_x() +
+
+  theme_blank_background() +
+  theme(text = element_text(size = 20)) +
+  theme(strip.text = element_text(size = 15),
+        legend.title = element_text(size = 15),
+        legend.background = element_blank(),
+        legend.text = element_text(size = 12)) +
+  guides(color = guide_legend(override.aes = list(linewidth = 2))) +
+
+  theme(legend.position = "bottom") +
+  labs(
+    y = expression(tau), x = "Set cellarea",
+    color = NULL) +
+
+  facet_wrap(~celltype, labeller = labeller(
+    celltype = c(triangle = "\u29C5", square = "\u25A1", hexagon = "\u2B21")
+  )) +
+
+  NULL
+
+
 output_prevalence_at_tau <-
   tau_rstate %>%
   enframe("id", "output") %>%
@@ -697,9 +775,7 @@ output_prevalence_at_tau <-
   print(width = Inf)
 
 
-output_prevalence_at_tau %>%
-
-  # dplyr::filter(n_cells >= 50) %>%
+output_prevalence_at_tau_plot_df <- output_prevalence_at_tau %>%
 
   pivot_longer(
     contains("prevalence"),
@@ -711,7 +787,8 @@ output_prevalence_at_tau %>%
   identity() %>%
   mutate(kernel = factor(kernel, kernel_levels)) %>%
   # dplyr::filter(prevalence_level != "target") %>%
-
+  identity()
+output_prevalence_at_tau_plot_df %>%
   group_by(kernel)  %>%
   group_map(\(data, kernel) {
     kernel_name <- kernel_levels[kernel %>% pull()]
@@ -737,6 +814,37 @@ output_prevalence_at_tau %>%
       theme_reverse_arrow_x() +
       theme_blank_background()
   })
+
+
+output_prevalence_at_tau_plot_df %>%
+
+  mutate(prevalence_level = prevalence_level %>%
+           fct(levels = c("middle", "target", "population"))) %>%
+
+  dplyr::filter(prevalence_level != "middle") %>%
+
+  ggplot() +
+  aes(cellarea, prevalence, group = str_c(kernel, celltype, prevalence_level)) +
+
+  labs(color = "Shape") +
+  geom_step(aes(color = celltype)) +
+
+  # facet_wrap(~prevalence_level, scales = "free_y") +
+  theme(strip.text = element_text(size = 20),
+        text = element_text(size = 20)) +
+
+  scale_x_log10_rev() +
+  # scale_x_log10_rev(limits = c(10, NA)) +
+  theme_reverse_arrow_x() +
+  theme_blank_background() +
+
+  labs(color = NULL, x = "Set cellarea") +
+  theme(legend.position = "bottom") +
+
+  # facet_wrap(prevalence_level~kernel) +
+  facet_grid(prevalence_level~kernel) +
+  NULL
+
 
 tau_hfirst_df <- tau_rstate %>%
   enframe() %>%
