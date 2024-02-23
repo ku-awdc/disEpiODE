@@ -949,6 +949,7 @@ tau_rstate %>%
   unnest_wider(output_ode_model) %>%
   bind_cols(params1) %>%
 
+  #TODO: consider simply extracting the prevalences at the end of these..
   mutate(
     inverse_traj = map(.progress = TRUE,
                        inverse, ~ .x[[1]](ttimes)),
