@@ -169,15 +169,14 @@ find_target_prevalence <- function(times, y, parameters) {
 #' when the middle-buffer has a prevalence of 50%.
 find_middle_prevalence <- function(times, y, parameters) {
   N <- parameters$N
-  # target_overlap <- parameters$target_overlap
-
+  
   # NOTE: changing the stopping criteria from TARGET to MIDDLE
-  target_overlap <- parameters$middle_overlap
+  middle_overlap <- parameters$middle_overlap
   I <- y[(N + 1):(2 * N)]
 
   carry <- parameters$carry
-  prevalence_target <- sum((I[target_overlap$id_overlap] /
-                              carry[target_overlap$id_overlap]) * target_overlap$weight)
+  prevalence_target <- sum((I[middle_overlap$id_overlap] /
+                              carry[middle_overlap$id_overlap]) * middle_overlap$weight)
 
   c(prevalence_target - 0.5,
     terminate_extinction(times, y, parameters))
