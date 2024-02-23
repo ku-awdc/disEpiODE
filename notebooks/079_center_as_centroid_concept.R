@@ -25,7 +25,7 @@ create_grid_with_center <- function(landscape, cellsize) {
 #'
 ggplot() +
   geom_sf(data = landscape, linetype = "dashed", fill = NA) +
-  geom_sf(data = create_grid_with_center(landscape = landscape, cellsize = 1/22),
+  geom_sf(data = create_grid_with_center(landscape = landscape, cellsize = 1/6),
           fill = NA, size = 2) +
 
   geom_sf(data = st_point(c(0.5, 0.5)), aes(color = "center")) +
