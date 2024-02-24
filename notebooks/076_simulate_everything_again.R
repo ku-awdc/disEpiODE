@@ -437,7 +437,6 @@ tau_rstate %>%
   unnest_wider(value_output) %>%
   # select(name, grid, ends_with("tau_state")) %>%
 
-
   bind_cols(params1) %>%
 
 
@@ -935,28 +934,39 @@ tau_rstate %>%
 #'
 ttimes <- seq.default(0, 300, length.out = 200)
 #'
-tau_rstate %>%
+traj_models_data <-
+  tau_rstate %>%
   enframe() %>%
   unnest_wider(value) %>%
   unnest_wider(output) %>%
   mutate(across(ends_with("_tau"), . %>% map_dbl(. %>% `[[`("tau")))) %>%
-  select(name, ends_with("_tau"), output_ode_model) %>%
+  bind_cols(params1) %>%
+  mutate(n_cells_set = n_cells,
+         n_cells = map_dbl(grid, nrow)) %>%
+  select(name, n_cells, ends_with("_tau"), output_ode_model) %>%
 
   #FIXME: this is annoying
   mutate(output_ode_model = output_ode_model %>%
            map(. %>% map(list))
   ) %>%
   unnest_wider(output_ode_model) %>%
-  bind_cols(params1) %>%
+  identity()
+
+# DEBUG
+n_cells_1 <- traj_models_data$n_cells[[1]]
+traj_models_data$inverse[[1]][[1]](seq.default(0, 400, length.out = 5))[, 1 +
+                                                                          2 * n_cells_1 + 1:3, drop = FALSE]
+
+traj_models_data <- traj_models_data %>%
 
   #TODO: consider simply extracting the prevalences at the end of these..
   mutate(
     inverse_traj = map(.progress = TRUE,
-                       inverse, ~ .x[[1]](ttimes)),
-    exp_traj = map(.progress = TRUE,
-                   exp, ~ .x[[1]](ttimes)),
-    half_normal_traj = map(.progress = TRUE,
-                           half_normal, ~ .x[[1]](ttimes)),
+                       inverse, ~ .x[[1]](ttimes))[, 1 + n_cells + n_cells + 1:3, drop = FALSE],
+    # exp_traj = map(.progress = TRUE,
+    #                exp, ~ .x[[1]](ttimes)),
+    # half_normal_traj = map(.progress = TRUE,
+    #                        half_normal, ~ .x[[1]](ttimes)),
   ) %>%
 
   glimpse()
