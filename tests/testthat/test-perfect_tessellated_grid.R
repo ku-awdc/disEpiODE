@@ -112,7 +112,7 @@ test_that("nested splits perfect tessellation", {
 
     triangle_grid <- create_grid(world_landscape,
                                  n = n_cells,
-                                 # n = c(n_cells / 2, n_cells / 2  / 2)C,
+                                 # n = c(n_cells / 2, n_cells / 2  / 2),
                                  celltype = "triangle")
     expect_equal(sum(st_area(triangle_grid)),
                  st_area(world_landscape))
@@ -126,10 +126,12 @@ test_that("nested splits perfect tessellation", {
 
     } else {
       expect_equal(n_triangle, n_square)
-
     }
 
   }
+
+  library(ggplot2)
+
   ggplot() +
     geom_sf(data = square_grid, fill = NA , linewidth = 1.9, linetype = "dashed") +
     geom_sf(data = triangle_grid, fill = NA, linewidth = 1.5, linetype = "dotted") +
