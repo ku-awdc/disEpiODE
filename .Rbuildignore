@@ -4,3 +4,8 @@
 ^local$
 ^notebooks$
 ^output$
+^run\.R$
+^run\.sh$
+^*\.pdf$
+^*\.png$
+^justfile$
