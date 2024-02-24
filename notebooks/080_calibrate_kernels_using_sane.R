@@ -3,12 +3,6 @@
 # devtools::load_all(reset = FALSE)
 
 # total_cells <- 250
-# total_cells <- 500
-# total_cells <- 750
-# total_cells <- 1200
-# total_cells <- 2000
-# beta_baseline <- 0.000001
-# beta_baseline <- 0.000001
 beta_baseline <- 0.05
 beta_mat_list <- c("inverse", "exp", "half_normal")
 remove_within_patch_transmission <- FALSE
