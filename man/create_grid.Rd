@@ -23,6 +23,8 @@ create_grid(
 
 \item{middle}{Offset the grid so equal sized cells are in the middle.}
 
+\item{center_as_centroid}{Ensure that there is a cell, whose centroid is the center of \code{landscape}.}
+
 \item{celltype}{Cell shapes \code{c("square", "hexagon", "hexagon_rot", "triangle")}}
 
 \item{offset}{Aligned with initial cell placed at lower left corner}
