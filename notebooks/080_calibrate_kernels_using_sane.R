@@ -288,13 +288,6 @@ rough_optim <- function(pars = c(sigma_exp, sigma_half_normal),
 
     result[[glue("output_{beta_mat_name}_prevalence")]] <- list(prevalence_at_tau)
   }
-  # structure(
-  #   list(
-  #     grid = grid,
-  #     output = result
-  #   )
-  # )
-
 
   tibble(distance = seq.default(0, 1, length.out = 200),
          kernel_inv = inv_sigma(distance, sigma = sigma_inv),
