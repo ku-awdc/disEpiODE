@@ -28,15 +28,13 @@ all_buffers <-
   rbind(source_target, middle_buffer) %>%
   mutate(label = factor(label,
                         c("source", "middle", "target"),
-                        labels = c("source", "target", "secondary")))
+                        labels = c("Farm A", "Farm B", "Farm C")))
 
 #' Multiple grids represented, and the zones used in the simulation
 #'
 common_area <- 1 / 42
 
 bind_rows(
-  # triangle = create_grid(landscape_sf, n = 24, celltype = "triangle"),
-  # square = create_grid(landscape_sf, n = 24, celltype = "square"),
   triangle = create_grid(landscape_sf, cellarea = common_area, celltype = "triangle"),
   square = create_grid(landscape_sf,   cellarea = common_area, celltype = "square"),
   hexagon = create_grid(landscape_sf,  cellarea = common_area, celltype = "hexagon"),
