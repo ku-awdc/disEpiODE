@@ -237,11 +237,11 @@ future_pmap(params1, .progress = TRUE,
               #   all_buffers_overlap %>%
               #   map(. %>% create_buffer_overlap_map()) %>%
               #   flatten()
-              
+
               #' source -> lower left
               #' middle -> center of landscape
               #' target -> upper right
-              #' 
+              #'
               #' terminate when middle achieves 50% prevalence
               source_overlap <- all_buffers_overlap_map$source
               middle_overlap <- all_buffers_overlap_map$middle
@@ -260,8 +260,11 @@ future_pmap(params1, .progress = TRUE,
               infection_mass <- source_zone_area * carry_density
               infection_mass <- 0.5 * infection_mass
 
+              # skip susceptibles i.e nrow(grid) then add only to id_overlap tiles.
               y_init[nrow(grid) + source_overlap$id_overlap] <-
                 infection_mass * source_overlap$weight
+              # now the susceptibles of those same tiles needs a reduction of
+              # individuals
               y_init[source_overlap$id_overlap] <-
                 y_init[source_overlap$id_overlap] -
                 y_init[nrow(grid) + source_overlap$id_overlap]
@@ -283,11 +286,18 @@ future_pmap(params1, .progress = TRUE,
                 carry = grid$carry,
                 area = grid$area,
                 source_overlap = source_overlap,
-                target_overlap = target_overlap,
-                middle_overlap = middle_overlap
+                middle_overlap = middle_overlap,
+                target_overlap = target_overlap
               )
-
-              #TODO: sanity check: none of the passed parameters can be NULL
+              # sanity check: none of the passed parameters can be NULL
+              stopifnot(
+                !is.null(n_grid),
+                !is.null(grid$carry),
+                !is.null(grid$area),
+                !is.null(source_overlap),
+                !is.null(middle_overlap),
+                !is.null(target_overlap)
+              )
 
               # common parameters
               ode_parameters <- list(
@@ -298,7 +308,7 @@ future_pmap(params1, .progress = TRUE,
               )
 
               # region: inverse
-              # kernel(d) = 1 / (1 + sigma×d)
+              # kernel(d) = 1 / (1 + sigma × d)
 
               # VALIDATION
               # isSymmetric(dist_grid)
@@ -355,7 +365,6 @@ future_pmap(params1, .progress = TRUE,
                 beta_mat = all_beta_mat[[beta_mat_name]]
                 if (remove_within_patch_transmission) {
                   diag(beta_mat) <- 0
-
                 }
 
                 tau_model_output <-
@@ -395,17 +404,23 @@ future_pmap(params1, .progress = TRUE,
                 result[[glue("output_ode_model_{beta_mat_name}")]] <- list(run_model = current_ode_model)
                 # result[[glue("output_ode_model")]][[beta_mat_name]] <- current_ode_model
 
+                #TODO: consider adding the time column to this..
+                # if you do so, the sanity check below needs adjustment
                 prevalence_at_tau <-
                   tau_model_output[
-                    # choose time = min(tau, Inf)
+                    # choose time = min?(tau, Inf)
                     2,
                     #first col is time, jump over Ss and Is,
                     #prevalences: source, middle, target, population
                     (1 + 1 + 2 * length(st_geometry(grid))):ncol(tau_model_output)
                     , drop = FALSE]
-                
-                #TODO: sanity checks: ensure the colnames of prevalence_at_tau
+
+                # sanity checks: ensure the colnames of prevalence_at_tau
                 # all contains "prevalence_"
+                stopifnot(
+                  "all columns must contain the `prevalence_` prefix" =
+                    all(str_detect(names(prevalence_at_tau), pattern = "prevalence_"))
+                )
 
                 result[[glue("output_{beta_mat_name}_prevalence")]] <-
                   list(prevalence_at_tau)
@@ -420,7 +435,7 @@ future_pmap(params1, .progress = TRUE,
   #TODO: rename this
   tau_rstate
 #'
-#' 
+#'
 
 #'
 #' Cache the results
@@ -443,17 +458,16 @@ tau_rstate %>% names()
 tau_rstate[] %>% names()
 tau_rstate[[1]] %>% names()
 
-tau_rstate %>%
-  enframe() %>%
-  unnest_wider(value, names_sep = "_") %>%
-  select(name, grid = value_grid, ends_with("value_output")) %>%
-  unnest_wider(value_output) %>%
-  # select(name, grid, ends_with("tau_state")) %>%
-
-  bind_cols(params1) %>%
-
-
-  glimpse()
+# IDEA?
+# tau_rstate %>%
+#   enframe() %>%
+#   unnest_wider(value, names_sep = "_") %>%
+#   select(name, grid = value_grid, ends_with("value_output")) %>%
+#   unnest_wider(value_output) %>%
+#   # select(name, grid, ends_with("tau_state")) %>%
+#
+#   bind_cols(params1) %>%
+#   glimpse()
 
 state_at_tau <-
   tau_rstate %>%
@@ -505,12 +519,19 @@ seed_infection_df <- state_at_tau %>%
   ) %>%
   identity()
 
-
+state_at_tau$tau[[4]][1,1 + state_at_tau$n_cells[4] + 1]
 #' it is expected that this has one value...
 seed_infection_df %>%
   distinct(zapsmall(seed_infection_mass)) %>% {
-    stopifnot("seed infection mass must be the same across grids" = nrow(.) == 1)
+    stopifnot("seed infection mass must be the same across grids" = nrow(.) == 1,
+              "seed infection must be greater than 0" = !isTRUE(all.equal(as.numeric(.), 0))
+              )
   }
+
+# R weirdness
+# all.equal(1, 2)
+# all.equal(1, 2) %>% isTRUE()
+# all.equal(1, 2) %>% isFALSE()
 
 seed_infection_df <- seed_infection_df %>%
   mutate(
@@ -581,6 +602,102 @@ pdf("plots_with_{post_tag}.pdf" %>%
     height = 2*6,
     width = 16 / 9 * (2*6))
 
+#' Plot the zones that are present
+#'
+#'
+params1 %>%
+  distinct(buffer_radius, buffer_offset_percent) %>%
+  group_by(buffer_radius, buffer_offset_percent) %>%
+  group_map(function(data, key) {
+    # buffer_radius <- 0.15
+    # buffer_offset_percent <- 0.2
+    buffer_radius <- key$buffer_radius
+    buffer_offset_percent <- key$buffer_offset_percent
+    source_target <-
+      get_buffer_source_target(landscape_width = 1,
+                               landscape_height = 1,
+                               buffer_radius = buffer_radius,
+                               buffer_offset_percent = buffer_offset_percent)
+    middle_buffer <- get_middle_buffer(source_target = source_target,
+                                       buffer_radius = buffer_radius)
+
+    all_buffers <-
+      rbind(source_target, middle_buffer) %>%
+      mutate(label = factor(label,
+                            c("source", "middle", "target"),
+                            labels = c("Farm A", "Farm B", "Farm C")))
+
+    #' Multiple grids represented, and the zones used in the simulation
+    #'
+    common_area <- 1 / 42
+
+    bind_rows(
+      triangle = create_grid(landscape_sf, cellarea = common_area, celltype = "triangle"),
+      square = create_grid(landscape_sf,   cellarea = common_area, celltype = "square"),
+      hexagon = create_grid(landscape_sf,  cellarea = common_area, celltype = "hexagon"),
+      .id = "celltype"
+    ) %>%
+      mutate(celltype = fct_inorder(celltype)) %>%
+      identity() %>% {
+        ggplot(.) +
+
+          geom_sf(fill = NA) +
+
+          geom_sf(data = all_buffers,
+                  aes(geometry = buffer_polygon, color = label),
+                  linewidth = 1,
+                  fill = NA) +
+
+          # geom_sf_text(aes(label = "🐖",
+          #                  geometry = buffer_point),
+          #              size = 10,
+          #              data = all_buffers) +
+          facet_wrap(~celltype) +
+          guides(color = guide_legend(override.aes = list(fill = NA))) +
+          labs(color = NULL) +
+          theme(legend.position = "bottom") %+%
+          theme_grid_plot() %+%
+          theme_blank_background() %+%
+          NULL
+      }
+    #'
+    #' Plot the three types of discretisations considered in this paper.
+    #'
+
+  }) %>%
+  identity()
+
+#' Plot the kernel chosen
+#'
+
+params1 %>%
+  distinct(sigma_inv, sigma_exp, sigma_half_normal) %>%
+  group_by(sigma_inv, sigma_exp, sigma_half_normal) %>%
+  group_map(function(data, key) {
+    sigma_inv <- key$sigma_inv
+    sigma_exp <- key$sigma_exp
+    sigma_half_normal <- key$sigma_half_normal
+
+    tibble(distance = seq.default(0, 1, length.out = 200),
+           kernel_inverse = inv_sigma(distance, sigma = sigma_inv),
+           kernel_exp = exp_sigma(distance, sigma = sigma_exp),
+           kernel_half_normal = half_normal_sigma(distance, sigma = sigma_half_normal),
+    ) %>%
+      pivot_longer(starts_with("kernel"),
+                   names_to = c("kernel"),
+                   names_pattern = "kernel_(.*)",
+                   values_to = "weight") %>%
+      mutate(kernel = fct(kernel, kernel_levels)) %>%
+      ggplot() +
+      aes(x = distance, y = weight, group = kernel) +
+      geom_line(aes(color = kernel)) +
+      theme_blank_background() +
+      theme(legend.position = "bottom") +
+      labs(color = NULL, y = "Distance weight") +
+      # lims(y = c(0,1)) +
+      NULL
+  })
+
 
 # Matrix::image(Matrix::Matrix(.))
 # TODO: add the zones to the above plots!
@@ -602,7 +719,7 @@ pdf("plots_with_{post_tag}.pdf" %>%
 #'
 #' Plot tau
 #'
-tau_rstate %>%
+tau_plot_data <- tau_rstate %>%
   enframe() %>%
   unnest_wider(value) %>%
   unnest_wider(output) %>%
@@ -626,11 +743,14 @@ tau_rstate %>%
          n_cells = map_int(grid, nrow)
   ) %>%
 
-  identity() -> tau_plot_data
+  identity()
 
 tau_plot_data %>%
   # dplyr::filter(n_cells >= 35) %>%
 
+  mutate(beta_mat = beta_mat %>%
+           fct_recode(Inverse = "inverse", Exponential = "exp",
+                      `Half-normal` = "half_normal")) %>%
   group_by(beta_mat) %>%
 
   group_map(\(data, group_id) {
@@ -705,6 +825,7 @@ tau_plot_data %>%
 
 
 tau_plot_data %>%
+  mutate(celltype = fct_relabel(celltype, str_to_title)) %>%
   #dplyr::filter(n_cells >= 35) %>%
   group_by(celltype) %>%
 
@@ -759,8 +880,12 @@ tau_plot_data %>%
     y = expression(tau), x = "Set cellarea",
     color = NULL) +
 
-  facet_wrap(~celltype, 
+  facet_grid(
+    celltype ~ .,
     labeller = labeller(
+      celltype = c(triangle = "Triangle",
+                   square = "Square",
+                   hexagon = "Hexagon")
     # celltype = c(triangle = "\u29C5", square = "\u25A1", hexagon = "\u2B21")
   )) +
 
@@ -795,41 +920,40 @@ output_prevalence_at_tau <-
 
 
 output_prevalence_at_tau_plot_df <- output_prevalence_at_tau %>%
-
   pivot_longer(
     contains("prevalence"),
-    names_to = c("kernel", "prevalence_level"),
+    names_to = c("kernel", "farm"),
     names_pattern = "output_(\\w+)_prevalence_(\\w+)",
     values_to = "prevalence"
   ) %>%
 
   identity() %>%
-  mutate(kernel = fct(kernel, kernel_levels)) %>%
+  mutate(kernel = fct(kernel, kernel_levels) %>%
+           fct_recode(Inverse = "inverse", Exponential = "exp",
+                      `Half-normal` = "half_normal")) %>%
   # dplyr::filter(prevalence_level != "target") %>%
+  mutate(farm = fct(farm, c("source", "middle", "target", "population")) %>%
+           fct_recode(`Farm A` = "source", `Farm B` = "middle", `Farm C` = "target", `Population` = "population")) %>%
   identity()
 output_prevalence_at_tau_plot_df %>%
   group_by(kernel)  %>%
   group_map(\(data, kernel) {
-    kernel_name <- kernel_levels[kernel %>% pull()]
+    kernel_name <- kernel$kernel
     ggplot(data) +
-      aes(cellarea, prevalence, group = str_c(kernel, celltype, prevalence_level)) +
+      aes(cellarea, prevalence, group = str_c(kernel, celltype, farm)) +
 
       labs(color = "Shape") +
       geom_step(aes(color = celltype)) +
 
-      facet_wrap(~prevalence_level, scales = "free_y") +
-
-      # lims(x = c(4, NA)) +
-      # expand_limits(y = 1) +
-      #
-      # coord_cartesian(xlim = c(30, NA)) +
-
-      labs(caption = glue("Kernel form: {kernel_name}")) +
+      facet_wrap(~farm, scales = "free_y") +
+      labs(caption = glue("Kernel form: {kernel_name}"),
+           color = NULL,
+           y = "Prevalence",) +
       theme(strip.text = element_text(size = 20),
             text = element_text(size = 20)) +
+      theme(legend.position = "bottom") +
 
       scale_x_log10_rev() +
-      # scale_x_log10_rev(limits = c(10, NA)) +
       theme_reverse_arrow_x() +
       theme_blank_background()
   })
@@ -837,31 +961,30 @@ output_prevalence_at_tau_plot_df %>%
 
 output_prevalence_at_tau_plot_df %>%
 
-  mutate(prevalence_level = prevalence_level %>%
-           fct(levels = c("source", "middle", "target", "population"))) %>%
+  # mutate(farm = farm %>%
+  #          fct(levels = c("source", "middle", "target", "population"))) %>%
 
-  dplyr::filter(prevalence_level != "middle") %>%
+  dplyr::filter(farm != "Farm B") %>%
 
   ggplot() +
-  aes(cellarea, prevalence, group = str_c(kernel, celltype, prevalence_level)) +
+  aes(cellarea, prevalence, group = str_c(kernel, celltype, farm)) +
 
   labs(color = "Shape") +
   geom_step(aes(color = celltype)) +
 
-  # facet_wrap(~prevalence_level, scales = "free_y") +
   theme(strip.text = element_text(size = 20),
         text = element_text(size = 20)) +
 
   scale_x_log10_rev() +
-  # scale_x_log10_rev(limits = c(10, NA)) +
   theme_reverse_arrow_x() +
   theme_blank_background() +
 
-  labs(color = NULL, x = "Set cellarea") +
+  labs(color = NULL, x = "Set cellarea", y = "Prevalence") +
   theme(legend.position = "bottom") +
+  expand_limits(y = 0) +
 
   # facet_wrap(prevalence_level~kernel) +
-  facet_grid(prevalence_level~kernel) +
+  facet_grid(farm~kernel, scales = "free_y") +
   NULL
 
 
@@ -947,53 +1070,160 @@ tau_rstate %>%
   identity()
 #'
 ttimes <- seq.default(0, 300, length.out = 200)
+# ttimes <- seq.default(0, 300, length.out = 10)
 #'
 traj_models_data <-
   tau_rstate %>%
-  enframe() %>%
+  enframe(name = "configuration") %>%
   unnest_wider(value) %>%
   unnest_wider(output) %>%
   mutate(across(ends_with("_tau"), . %>% map_dbl(. %>% `[[`("tau")))) %>%
   bind_cols(params1) %>%
   mutate(n_cells_set = n_cells,
          n_cells = map_dbl(grid, nrow)) %>%
-  select(name, n_cells, ends_with("_tau"), output_ode_model) %>%
+  select(configuration, n_cells, ends_with("_tau"), starts_with("output_ode_model_")) %>%
 
-  #FIXME: this is annoying
-  mutate(output_ode_model = output_ode_model %>%
-           map(. %>% map(list))
-  ) %>%
-  unnest_wider(output_ode_model) %>%
+  # glimpse() %>%
   identity()
 
 # DEBUG
 n_cells_1 <- traj_models_data$n_cells[[1]]
-traj_models_data$inverse[[1]][[1]](seq.default(0, 400, length.out = 5))[, 1 +
+traj_models_data$output_ode_model_inverse[[1]][[1]](seq.default(0, 400, length.out = 5))[, 1 +
                                                                           2 * n_cells_1 + 1:4, drop = FALSE]
 
 traj_models_data <- traj_models_data %>%
 
   #TODO: consider simply extracting the prevalences at the end of these..
   mutate(
-    inverse_traj = map(.progress = TRUE,
-                       inverse, ~ .x[[1]](ttimes))[, 1 + n_cells + n_cells + 1:4, drop = FALSE],
-    # exp_traj = map(.progress = TRUE,
-    #                exp, ~ .x[[1]](ttimes)),
-    # half_normal_traj = map(.progress = TRUE,
-    #                        half_normal, ~ .x[[1]](ttimes)),
+    inverse_traj = map2(.progress = TRUE,
+                        output_ode_model_inverse,
+                        n_cells, ~ .x[[1]](ttimes)[, c(1, 1 + 2 * .y + 1:4), drop = FALSE]),
+    exp_traj = map2(.progress = TRUE,
+                    output_ode_model_exp,
+                    n_cells, ~ .x[[1]](ttimes)[, c(1, 1 + 2 * .y + 1:4), drop = FALSE]),
+    half_normal_traj = map2(.progress = TRUE,
+                            output_ode_model_half_normal,
+                            n_cells, ~ .x[[1]](ttimes)[, c(1, 1 + 2 * .y + 1:4), drop = FALSE]),
   ) %>%
-
   glimpse()
 
-# select(name, output_ode_model) %>%
-#   # unnest_wider(output_ode_model) %>%
-#
-#   bind_cols(params1) -> ode_model_traj_data
-#
-# ode_model_traj_data %>%
-#   group_by(kernel, celltype) %>%
-#   summarise(max(tau))
+traj_models_data %>%
+  glimpse()
 
+# DEBUG
+# traj_models_data$exp_traj[[2]]
+
+output_traj_rds_file <- glue("output/{post_tag}/output_traj.rds")
+readr::write_rds(x = traj_models_data %>%
+                   select(-starts_with("output_ode_model")) %>%
+                   bind_cols(params1 %>% select(-n_cells)),
+                 file = output_traj_rds_file)
+
+params1 %>%
+  glimpse()
+
+source_seed_prevalence <-
+  traj_models_data %>%
+  select(-starts_with("output_ode_model")) %>%
+  bind_cols(params1 %>% select(-n_cells)) %>%
+  mutate(across(ends_with("_traj"), ~ map(.x, as_tibble))) %>%
+  # unnest(ends_with("_traj"), names_sep = "_") %>%
+  # select(ends_with("_source")) %>%
+
+  mutate(
+    across(ends_with("_traj"),
+           # browser()
+           . %>% map_dbl(. %>% `[`(1,2, drop = TRUE))
+    )
+  )
+
+#' For diagnostic purposes, what is the prevalence at source tile.
+#'
+source_seed_prevalence %>%
+  mutate(celltype = fct(celltype, c("triangle", "square", "hexagon"))) %>%
+  ggplot() +
+  aes(group = str_c(celltype)) +
+  stat_density(geom = "line", aes(inverse_traj, color = celltype)) +
+  # geom_density(aes(exp_traj)) +
+  geom_freqpoly(aes(inverse_traj,
+                    color = celltype,
+                    y = after_stat(density))) +
+  labs(x = "Prevalence at Farm A") +
+  facet_grid(rows = vars(celltype)) +
+  labs(color = NULL, caption = "Across all grids, at time = 0") +
+  theme(legend.position = "bottom") +
+  theme_blank_background()
+
+source_seed_prevalence %>%
+  ggplot() +
+
+  aes(x = cellarea, group = str_c(celltype)) +
+  geom_step(aes(y = inverse_traj, color = celltype)) +
+
+  labs(x = "Set cellarea", y = "Prevalence at Farm A",
+       caption = "Prevalence at Farm A, at time = 0",
+       color = NULL) +
+
+  scale_x_log10_rev() +
+  theme_reverse_arrow_x() +
+  theme(legend.position = "bottom") +
+  guides(color = guide_legend(override.aes = list(fill = NA, linewidth = 1.5))) +
+  theme_blank_background()
+
+
+traj_models_data %>%
+  select(-starts_with("output_ode_model")) %>%
+  bind_cols(params1 %>% select(-n_cells)) %>%
+  pivot_longer(
+    matches("\\w*_?(inverse|exp|half_normal)+_(\\w+)"),
+    names_pattern = "\\w*_?(inverse|exp|half_normal)+_(\\w+)",
+    names_to = c("kernel",".value"),
+  ) %>%
+  mutate(traj = traj %>% map(as_tibble)) %>%
+  unnest(c(traj, tau)) %>%
+  # glimpse() %>%
+  pivot_longer(
+    contains("prevalence_"),
+    names_pattern = "prevalence_(\\w+)",
+    names_to = c("Farm"),
+    values_to = "prevalence"
+  ) %>%
+
+  # ASSUME: COMMON TIME SCALE
+  select(-ends_with("traj_time"), ttime = time) %>%
+  mutate(Farm = fct(Farm, levels = c("source", "middle", "target", "population")),
+         Farm = fct_recode(Farm, `Farm A` = "source", `Farm B` = "middle", `Farm C` = "target", `Population` = "population")) %>%
+
+  group_by(kernel, celltype) %>%
+  group_map(\(data, key) {
+    # browser()
+
+    kernel <- key$kernel
+    celltype <- key$celltype
+
+    ggplot(data) +
+
+      # aes(ttime, prevalence, group = str_c(celltype, kernel, Farm)) +
+      aes(ttime, prevalence, group = str_c(configuration, celltype, kernel, Farm)) +
+      # aes(ttime, prevalence, group = str_c(configuration, kernel, Farm)) +
+
+      # geom_step(aes(alpha = n_cells)) +
+      geom_step(aes(alpha = 1 / cellarea)) +
+
+      geom_rug(aes(x = tau, y = NULL), linewidth = 0.01) +
+
+      facet_grid(vars(Farm)) +
+      guides(alpha = guide_none()) +
+      labs(alpha = NULL, y = "Prevalence", x = "time") +
+      labs(caption = glue("Kernel: {kernel}, and cell-shape: {celltype}")) +
+
+      theme_blank_background() +
+      NULL
+  })
+#'
+#'
+
+#'
 
 dev.off()
 
