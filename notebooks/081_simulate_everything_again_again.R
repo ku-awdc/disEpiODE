@@ -13,13 +13,15 @@ future::plan(future::multisession(workers = 10))
 library(furrr)
 
 tag <- "081" # REMEMBER TO SET THIS
-post_tag <- "final_draft_again" # REMEMBER TO SET THIS
+post_tag <- "final_draft_beta_smaller" # REMEMBER TO SET THIS
 fs::dir_create(glue("output/{post_tag}"))
 
 
 world_scale <- 1
 remove_within_patch_transmission <- FALSE
 generate_animation_pdf <- FALSE
+plot_in_pdf_file <- FALSE
+# plot_in_pdf_file <- TRUE
 #TODO:
 compute_trajectories_to_tau <- FALSE
 short_range_kernels <- FALSE
@@ -32,8 +34,7 @@ world_landscape <- world$landscape
 
 params1 <- tidyr::expand_grid(
   world_scale = world_scale,
-  # beta_baseline = c(0.005),
-  beta_baseline = 0.5,
+  beta_baseline = 0.05,
   sigma_inv = 100,
   sigma_exp = 12.6161672832572,
   sigma_half_normal = 0.0845580197025075,
@@ -602,10 +603,12 @@ if (generate_animation_pdf) {
 
 }
 
-pdf("plots_with_{post_tag}.pdf" %>%
-      glue(),
-    height = 2*6,
-    width = 16 / 9 * (2*6))
+if (plot_in_pdf_file) {
+  pdf("plots_with_{post_tag}.pdf" %>%
+        glue(),
+      height = 2*6,
+      width = 16 / 9 * (2*6))
+}
 
 #' Plot the zones that are present
 #'
@@ -1024,7 +1027,9 @@ tau_hfirst_df <- tau_rstate %>%
   identity()
 
 tau_hfirst_df %>%
-  mutate(beta_mat = fct(beta_mat, kernel_levels)) %>%
+  mutate(beta_mat = fct(beta_mat, kernel_levels) %>%
+           fct_recode(Inverse = "inverse", Exponential = "exp",
+                      `Half-normal` = "half_normal")) %>%
 
   ggplot() +
   aes(cellarea, hlast, group = str_c(celltype, beta_mat)) +
@@ -1032,7 +1037,8 @@ tau_hfirst_df %>%
   geom_step(aes(color = celltype)) +
 
   facet_wrap(~beta_mat, scales = "free") +
-
+  theme(legend.position = "bottom") +
+  labs(color = NULL) +
   theme_blank_background()
 
 
@@ -1054,6 +1060,22 @@ tau_hfirst_df %>%
 #' Produce simulation trajectory plot
 #'
 
+#' First calculate the maximum tau amongst them all
+tau_rstate %>%
+  enframe("configuration") %>%
+  unnest_wider(value) %>% unnest_wider(output) %>%
+  mutate(across(ends_with("_tau"), . %>% map_dbl(. %>% `[[`("tau")))) %>%
+  select(configuration, ends_with("_tau")) %>%
+  pivot_longer(
+    ends_with("_tau"),
+    names_to = c("kernel", ".value"),
+    names_pattern = "output_(\\w+)_(\\w+)"
+  ) %>%
+  summarise(tau_max = max(tau),
+            tau_10p = tau_max + tau_max / 10) ->
+  tau_max
+tau_max$tau_max
+
 tau_rstate %>%
   enframe() %>%
   unnest_wider(value) %>%
@@ -1074,7 +1096,7 @@ tau_rstate %>%
   pivot_wider(names_from = metric) %>%
   identity()
 #'
-ttimes <- seq.default(0, 300, length.out = 200)
+ttimes <- seq.default(0, tau_max$tau_10p, length.out = 200)
 #'
 traj_models_data <-
   tau_rstate %>%
@@ -1146,7 +1168,7 @@ source_seed_prevalence <-
 
 #' For diagnostic purposes, what is the prevalence at source tile.
 #'
-if (source_seed_prevalence %>% count(celltype) %>% distinct(n) %>% nrow() %>% {.>1}) {
+if (source_seed_prevalence %>% count(celltype) %>%  {any(.$n > 1)}) {
   source_seed_prevalence %>%
     mutate(celltype = fct(celltype, c("triangle", "square", "hexagon"))) %>%
     ggplot() +
@@ -1238,58 +1260,8 @@ traj_models_data_ff %>%
       NULL
   })
 
-
-# DEBUG
-# traj_models_data_ff %>%
-#   filter(Farm != "Population") %>%
-#   filter(kernel == kernel[sample.int(n(), size = 1)] ,
-#          celltype == celltype[sample.int(n(), size = 1)]) %>%
-#   glimpse() %>%
-#
-#   ggplot() +
-#   aes(ttime, prevalence, group = str_c(configuration, celltype, kernel, Farm)) +
-#   facet_grid(vars(Farm), scales = "fixed") +
-#
-#   # geom_line() +
-#   geom_line(data = . %>%
-#               filter(ttime <= unique(tau))) +
-#   geom_line(data = . %>%
-#               filter(ttime > unique(tau)), linetype = "dashed") +
-#   geom_hline(
-#     data = . %>% filter(Farm == "Farm B"),
-#     aes(yintercept = 0.50),
-#     linetype = "dotted"
-#   ) +
-#   geom_vline(
-#     # data = . %>% filter(Farm == "Farm B"),
-#     aes(xintercept = tau),
-#     linetype = "dotted"
-#   ) +
-#
-#   geom_text(
-#     data = . %>% filter(Farm == "Farm B", ttime >= tau) %>% slice(1),
-#     aes(x = tau, y = prevalence / 2, label = "tau"),
-#     nudge_x = 25,
-#     size = 5.5,
-#     parse = TRUE) +
-#   geom_point(
-#     data = . %>% filter(Farm == "Farm B", ttime >= tau) %>% slice(1),
-#     aes(x = tau, y = prevalence),
-#     size = 2.5,
-#     shape = 16
-#   ) +
-#
-#   # geom_rug(aes(x = tau, y = NULL), linewidth = 0.01) +
-#
-#   guides(alpha = guide_none()) +
-#   labs(alpha = NULL, y = "Prevalence", x = "time") +
-#   # labs(caption = glue("Kernel: {kernel}, and cell-shape: {celltype}")) +
-#
-#   theme_blank_background() +
-#   NULL
-
 #' Plot all instances:
-ttimes <- seq.default(0, 2*300, length.out = 200)
+ttimes <- seq.default(0, tau_max$tau_max * 2, length.out = 300)
 
 tau_rstate %>%
   enframe(name = "configuration") %>%
@@ -1397,7 +1369,9 @@ tau_rstate %>%
 #'
 #'
 
-dev.off()
+if (plot_in_pdf_file) {
+  dev.off()
+}
 
 
 beepr::beep()
