@@ -237,10 +237,15 @@ future_pmap(params1, .progress = TRUE,
               #   all_buffers_overlap %>%
               #   map(. %>% create_buffer_overlap_map()) %>%
               #   flatten()
-              #
+              
+              #' source -> lower left
+              #' middle -> center of landscape
+              #' target -> upper right
+              #' 
+              #' terminate when middle achieves 50% prevalence
               source_overlap <- all_buffers_overlap_map$source
-              target_overlap <- all_buffers_overlap_map$target
               middle_overlap <- all_buffers_overlap_map$middle
+              target_overlap <- all_buffers_overlap_map$target
 
               #' remove mass from susceptible
               # browser()
@@ -277,9 +282,12 @@ future_pmap(params1, .progress = TRUE,
                 N = n_grid,
                 carry = grid$carry,
                 area = grid$area,
+                source_overlap = source_overlap,
                 target_overlap = target_overlap,
                 middle_overlap = middle_overlap
               )
+
+              #TODO: sanity check: none of the passed parameters can be NULL
 
               # common parameters
               ode_parameters <- list(
@@ -384,17 +392,20 @@ future_pmap(params1, .progress = TRUE,
                 current_ode_model <- build_model_function(ode_parameters, hmax_list[[beta_mat_name]], parameter_list, beta_mat)
                 #TODO: Maybe store list(run_model = current_ode_model)
                 # if so, then the storage of this should mimic the other ways outlined here
-                # rest[[glue("output_ode_model_{beta_mat_name})]] <- list(run_model = current_ode_model)
-                result[[glue("output_ode_model")]][[beta_mat_name]] <- current_ode_model
+                result[[glue("output_ode_model_{beta_mat_name}")]] <- list(run_model = current_ode_model)
+                # result[[glue("output_ode_model")]][[beta_mat_name]] <- current_ode_model
 
                 prevalence_at_tau <-
                   tau_model_output[
                     # choose time = min(tau, Inf)
                     2,
                     #first col is time, jump over Ss and Is,
-                    #prevalences: target, middle, population
+                    #prevalences: source, middle, target, population
                     (1 + 1 + 2 * length(st_geometry(grid))):ncol(tau_model_output)
-                    ,drop = FALSE]
+                    , drop = FALSE]
+                
+                #TODO: sanity checks: ensure the colnames of prevalence_at_tau
+                # all contains "prevalence_"
 
                 result[[glue("output_{beta_mat_name}_prevalence")]] <-
                   list(prevalence_at_tau)
@@ -409,6 +420,8 @@ future_pmap(params1, .progress = TRUE,
   #TODO: rename this
   tau_rstate
 #'
+#' 
+
 #'
 #' Cache the results
 output_rds_file <- glue("output/{post_tag}/output.rds")
@@ -470,8 +483,8 @@ state_at_tau <-
     values_to = c("tau"),
     names_pattern = "value_output_output_(\\w+)_tau_state"
   ) %>%
-  mutate(celltype = factor(celltype, celltype_levels)) %>%
-  mutate(beta_mat = factor(beta_mat, kernel_levels)) %>%
+  mutate(celltype = fct(celltype, celltype_levels)) %>%
+  mutate(beta_mat = fct(beta_mat, kernel_levels)) %>%
 
   print(width = Inf) %>%
   identity()
@@ -607,8 +620,8 @@ tau_rstate %>%
     values_to = c("tau"),
     names_pattern = "output_(\\w+)_tau_tau"
   ) %>%
-  mutate(beta_mat = factor(beta_mat, kernel_levels),
-         celltype = factor(celltype, celltype_levels),
+  mutate(beta_mat = fct(beta_mat, kernel_levels),
+         celltype = fct(celltype, celltype_levels),
          n_cells_set = n_cells,
          n_cells = map_int(grid, nrow)
   ) %>%
@@ -746,8 +759,9 @@ tau_plot_data %>%
     y = expression(tau), x = "Set cellarea",
     color = NULL) +
 
-  facet_wrap(~celltype, labeller = labeller(
-    celltype = c(triangle = "\u29C5", square = "\u25A1", hexagon = "\u2B21")
+  facet_wrap(~celltype, 
+    labeller = labeller(
+    # celltype = c(triangle = "\u29C5", square = "\u25A1", hexagon = "\u2B21")
   )) +
 
   NULL
@@ -790,7 +804,7 @@ output_prevalence_at_tau_plot_df <- output_prevalence_at_tau %>%
   ) %>%
 
   identity() %>%
-  mutate(kernel = factor(kernel, kernel_levels)) %>%
+  mutate(kernel = fct(kernel, kernel_levels)) %>%
   # dplyr::filter(prevalence_level != "target") %>%
   identity()
 output_prevalence_at_tau_plot_df %>%
@@ -824,7 +838,7 @@ output_prevalence_at_tau_plot_df %>%
 output_prevalence_at_tau_plot_df %>%
 
   mutate(prevalence_level = prevalence_level %>%
-           fct(levels = c("middle", "target", "population"))) %>%
+           fct(levels = c("source", "middle", "target", "population"))) %>%
 
   dplyr::filter(prevalence_level != "middle") %>%
 
@@ -882,7 +896,7 @@ tau_hfirst_df <- tau_rstate %>%
   identity()
 
 tau_hfirst_df %>%
-  mutate(beta_mat = factor(beta_mat, kernel_levels)) %>%
+  mutate(beta_mat = fct(beta_mat, kernel_levels)) %>%
 
   ggplot() +
   aes(cellarea, hlast, group = str_c(celltype, beta_mat)) +
@@ -955,14 +969,14 @@ traj_models_data <-
 # DEBUG
 n_cells_1 <- traj_models_data$n_cells[[1]]
 traj_models_data$inverse[[1]][[1]](seq.default(0, 400, length.out = 5))[, 1 +
-                                                                          2 * n_cells_1 + 1:3, drop = FALSE]
+                                                                          2 * n_cells_1 + 1:4, drop = FALSE]
 
 traj_models_data <- traj_models_data %>%
 
   #TODO: consider simply extracting the prevalences at the end of these..
   mutate(
     inverse_traj = map(.progress = TRUE,
-                       inverse, ~ .x[[1]](ttimes))[, 1 + n_cells + n_cells + 1:3, drop = FALSE],
+                       inverse, ~ .x[[1]](ttimes))[, 1 + n_cells + n_cells + 1:4, drop = FALSE],
     # exp_traj = map(.progress = TRUE,
     #                exp, ~ .x[[1]](ttimes)),
     # half_normal_traj = map(.progress = TRUE,
