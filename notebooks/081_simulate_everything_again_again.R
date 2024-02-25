@@ -12,8 +12,8 @@ future::plan(future::multisession(workers = 10))
 # future::plan(future::multisession(workers = 4))
 library(furrr)
 
-tag <- "076" # REMEMBER TO SET THIS
-post_tag <- "final_draft" # REMEMBER TO SET THIS
+tag <- "081" # REMEMBER TO SET THIS
+post_tag <- "final_draft_again" # REMEMBER TO SET THIS
 fs::dir_create(glue("output/{post_tag}"))
 
 
@@ -23,6 +23,12 @@ generate_animation_pdf <- FALSE
 #TODO:
 compute_trajectories_to_tau <- FALSE
 short_range_kernels <- FALSE
+
+#' Create landscape
+world <- create_landscape(scale = world_scale)
+world_landscape <- world$landscape
+
+#' Setup the matrix of scenario configurations to run.
 
 params1 <- tidyr::expand_grid(
   world_scale = world_scale,
@@ -39,6 +45,8 @@ params1 <- tidyr::expand_grid(
   # resolution in terms of area, and point (centroid) density.
   cellarea = c(NA, seq_cellarea(n = 150, min_cellarea = 1 / 2000, max_cellarea = 1)),
   n_cells = NA,
+  # cellarea = NA,
+  # n_cells = floor(sqrt(2000)),
   # n_cells = c(NA, seq.default(from = 1, to = floor(sqrt(2000)), by = 5)),
   celltype = c("triangle", "square", "hexagon"),
   middle = c(FALSE)
@@ -150,9 +158,6 @@ future_pmap(params1, .progress = TRUE,
                                          buffer_offset_percent = buffer_offset_percent)
               middle_buffer <- get_middle_buffer(source_target = source_target,
                                                  buffer_radius = buffer_radius)
-
-              world <- create_landscape(scale = world_scale)
-              world_landscape <- world$landscape
 
               all_buffers <-
                 rbind(source_target, middle_buffer) %>%
@@ -632,9 +637,9 @@ params1 %>%
     common_area <- 1 / 42
 
     bind_rows(
-      triangle = create_grid(landscape_sf, cellarea = common_area, celltype = "triangle"),
-      square = create_grid(landscape_sf,   cellarea = common_area, celltype = "square"),
-      hexagon = create_grid(landscape_sf,  cellarea = common_area, celltype = "hexagon"),
+      triangle = create_grid(world_landscape, cellarea = common_area, celltype = "triangle"),
+      square = create_grid(world_landscape,   cellarea = common_area, celltype = "square"),
+      hexagon = create_grid(world_landscape,  cellarea = common_area, celltype = "hexagon"),
       .id = "celltype"
     ) %>%
       mutate(celltype = fct_inorder(celltype)) %>%
@@ -1070,7 +1075,6 @@ tau_rstate %>%
   identity()
 #'
 ttimes <- seq.default(0, 300, length.out = 200)
-# ttimes <- seq.default(0, 300, length.out = 10)
 #'
 traj_models_data <-
   tau_rstate %>%
@@ -1087,14 +1091,17 @@ traj_models_data <-
   identity()
 
 # DEBUG
-n_cells_1 <- traj_models_data$n_cells[[1]]
-traj_models_data$output_ode_model_inverse[[1]][[1]](seq.default(0, 400, length.out = 5))[, 1 +
-                                                                          2 * n_cells_1 + 1:4, drop = FALSE]
+# n_cells_1 <- traj_models_data$n_cells[[1]]
+# traj_models_data$output_ode_model_inverse[[1]][[1]](
+#   seq.default(0, 400, length.out = 5))[, 1 +
+#                                          2 * n_cells_1 + 1:4, drop = FALSE]
 
 traj_models_data <- traj_models_data %>%
 
   #TODO: consider simply extracting the prevalences at the end of these..
   mutate(
+    #TODO: replace 1:4 with 1:ncol(output_matrix)
+    # and maybe call this operation, extract prevalence-matrix, [time prevalence_sourcce prevalence_...]
     inverse_traj = map2(.progress = TRUE,
                         output_ode_model_inverse,
                         n_cells, ~ .x[[1]](ttimes)[, c(1, 1 + 2 * .y + 1:4), drop = FALSE]),
@@ -1107,8 +1114,8 @@ traj_models_data <- traj_models_data %>%
   ) %>%
   glimpse()
 
-traj_models_data %>%
-  glimpse()
+# traj_models_data %>%
+#   glimpse()
 
 # DEBUG
 # traj_models_data$exp_traj[[2]]
@@ -1119,8 +1126,8 @@ readr::write_rds(x = traj_models_data %>%
                    bind_cols(params1 %>% select(-n_cells)),
                  file = output_traj_rds_file)
 
-params1 %>%
-  glimpse()
+# params1 %>%
+#   glimpse()
 
 source_seed_prevalence <-
   traj_models_data %>%
@@ -1139,20 +1146,22 @@ source_seed_prevalence <-
 
 #' For diagnostic purposes, what is the prevalence at source tile.
 #'
-source_seed_prevalence %>%
-  mutate(celltype = fct(celltype, c("triangle", "square", "hexagon"))) %>%
-  ggplot() +
-  aes(group = str_c(celltype)) +
-  stat_density(geom = "line", aes(inverse_traj, color = celltype)) +
-  # geom_density(aes(exp_traj)) +
-  geom_freqpoly(aes(inverse_traj,
-                    color = celltype,
-                    y = after_stat(density))) +
-  labs(x = "Prevalence at Farm A") +
-  facet_grid(rows = vars(celltype)) +
-  labs(color = NULL, caption = "Across all grids, at time = 0") +
-  theme(legend.position = "bottom") +
-  theme_blank_background()
+if (source_seed_prevalence %>% count(celltype) %>% distinct(n) %>% nrow() %>% {.>1}) {
+  source_seed_prevalence %>%
+    mutate(celltype = fct(celltype, c("triangle", "square", "hexagon"))) %>%
+    ggplot() +
+    aes(group = str_c(celltype)) +
+    stat_density(geom = "line", aes(inverse_traj, color = celltype)) +
+    # geom_density(aes(exp_traj)) +
+    geom_freqpoly(aes(inverse_traj,
+                      color = celltype,
+                      y = after_stat(density))) +
+    labs(x = "Prevalence at Farm A") +
+    facet_grid(rows = vars(celltype)) +
+    labs(color = NULL, caption = "Across all grids, at time = 0") +
+    theme(legend.position = "bottom") +
+    theme_blank_background()
+}
 
 source_seed_prevalence %>%
   ggplot() +
@@ -1171,7 +1180,7 @@ source_seed_prevalence %>%
   theme_blank_background()
 
 
-traj_models_data %>%
+traj_models_data_ff <- traj_models_data %>%
   select(-starts_with("output_ode_model")) %>%
   bind_cols(params1 %>% select(-n_cells)) %>%
   pivot_longer(
@@ -1192,8 +1201,16 @@ traj_models_data %>%
   # ASSUME: COMMON TIME SCALE
   select(-ends_with("traj_time"), ttime = time) %>%
   mutate(Farm = fct(Farm, levels = c("source", "middle", "target", "population")),
-         Farm = fct_recode(Farm, `Farm A` = "source", `Farm B` = "middle", `Farm C` = "target", `Population` = "population")) %>%
+         Farm = fct_recode(
+           Farm,
+           `Farm A` = "source",
+           `Farm B` = "middle",
+           `Farm C` = "target",
+           `Population` = "population"
+         ))
 
+
+traj_models_data_ff %>%
   group_by(kernel, celltype) %>%
   group_map(\(data, key) {
     # browser()
@@ -1220,9 +1237,164 @@ traj_models_data %>%
       theme_blank_background() +
       NULL
   })
-#'
-#'
 
+
+# DEBUG
+# traj_models_data_ff %>%
+#   filter(Farm != "Population") %>%
+#   filter(kernel == kernel[sample.int(n(), size = 1)] ,
+#          celltype == celltype[sample.int(n(), size = 1)]) %>%
+#   glimpse() %>%
+#
+#   ggplot() +
+#   aes(ttime, prevalence, group = str_c(configuration, celltype, kernel, Farm)) +
+#   facet_grid(vars(Farm), scales = "fixed") +
+#
+#   # geom_line() +
+#   geom_line(data = . %>%
+#               filter(ttime <= unique(tau))) +
+#   geom_line(data = . %>%
+#               filter(ttime > unique(tau)), linetype = "dashed") +
+#   geom_hline(
+#     data = . %>% filter(Farm == "Farm B"),
+#     aes(yintercept = 0.50),
+#     linetype = "dotted"
+#   ) +
+#   geom_vline(
+#     # data = . %>% filter(Farm == "Farm B"),
+#     aes(xintercept = tau),
+#     linetype = "dotted"
+#   ) +
+#
+#   geom_text(
+#     data = . %>% filter(Farm == "Farm B", ttime >= tau) %>% slice(1),
+#     aes(x = tau, y = prevalence / 2, label = "tau"),
+#     nudge_x = 25,
+#     size = 5.5,
+#     parse = TRUE) +
+#   geom_point(
+#     data = . %>% filter(Farm == "Farm B", ttime >= tau) %>% slice(1),
+#     aes(x = tau, y = prevalence),
+#     size = 2.5,
+#     shape = 16
+#   ) +
+#
+#   # geom_rug(aes(x = tau, y = NULL), linewidth = 0.01) +
+#
+#   guides(alpha = guide_none()) +
+#   labs(alpha = NULL, y = "Prevalence", x = "time") +
+#   # labs(caption = glue("Kernel: {kernel}, and cell-shape: {celltype}")) +
+#
+#   theme_blank_background() +
+#   NULL
+
+#' Plot all instances:
+ttimes <- seq.default(0, 2*300, length.out = 200)
+
+tau_rstate %>%
+  enframe(name = "configuration") %>%
+  unnest_wider(value) %>%
+  unnest_wider(output) %>%
+  mutate(across(ends_with("_tau"), . %>% map_dbl(. %>% `[[`("tau")))) %>%
+  bind_cols(params1) %>%
+  mutate(n_cells_set = n_cells,
+         n_cells = map_dbl(grid, nrow)) %>%
+  slice_max(n_cells, n = 1, with_ties = FALSE, by = celltype) %>%
+  # onlt select c(kernel, celltype) for a high quality grid, as that's the only thing
+  # needed
+
+  glimpse() %>%
+  select(configuration, n_cells, celltype, ends_with("_tau"), starts_with("output_ode_model_")) %>%
+
+  #TODO: consider simply extracting the prevalences at the end of these..
+  mutate(
+    inverse_traj = map2(.progress = TRUE,
+                        output_ode_model_inverse,
+                        n_cells, ~ .x[[1]](ttimes)[, c(1, 1 + 2 * .y + 1:4), drop = FALSE]),
+    exp_traj = map2(.progress = TRUE,
+                    output_ode_model_exp,
+                    n_cells, ~ .x[[1]](ttimes)[, c(1, 1 + 2 * .y + 1:4), drop = FALSE]),
+    half_normal_traj = map2(.progress = TRUE,
+                            output_ode_model_half_normal,
+                            n_cells, ~ .x[[1]](ttimes)[, c(1, 1 + 2 * .y + 1:4), drop = FALSE]),
+  ) %>%
+
+  select(-starts_with("output_ode_model")) %>%
+
+  # add configuration params again?
+  # bind_cols(params1 %>% select(-n_cells)) %>%
+  # glimpse()
+  pivot_longer(
+    matches("\\w*_?(inverse|exp|half_normal)+_(\\w+)"),
+    names_pattern = "\\w*_?(inverse|exp|half_normal)+_(\\w+)",
+    names_to = c("kernel",".value"),
+  ) %>%
+  mutate(traj = traj %>% map(as_tibble)) %>%
+  unnest(c(traj, tau)) %>%
+  # glimpse() %>%
+  pivot_longer(
+    contains("prevalence_"),
+    names_pattern = "prevalence_(\\w+)",
+    names_to = c("Farm"),
+    values_to = "prevalence"
+  ) %>%
+
+  # ASSUME: COMMON TIME SCALE
+  select(-ends_with("traj_time"), ttime = time) %>%
+  mutate(Farm = fct(Farm, levels = c("source", "middle", "target", "population")),
+         Farm = fct_recode(
+           Farm,
+           `Farm A` = "source",
+           `Farm B` = "middle",
+           `Farm C` = "target",
+           `Population` = "population"
+         )) %>%
+
+  group_by(kernel, celltype) %>%
+  group_map(\(data, key) {
+    kernel <- key$kernel
+    celltype <- key$celltype
+
+    ggplot(data) +
+      aes(ttime, prevalence, group = str_c(configuration, celltype, kernel, Farm)) +
+      facet_grid(vars(Farm), scales = "fixed") +
+
+      # geom_line() +
+      geom_line(data = . %>%
+                  filter(ttime <= unique(tau))) +
+      geom_line(data = . %>%
+                  filter(ttime > unique(tau)), linetype = "dashed") +
+      geom_hline(
+        data = . %>% filter(Farm == "Farm B"),
+        aes(yintercept = 0.50),
+        linetype = "dotted"
+      ) +
+      geom_vline(
+        # data = . %>% filter(Farm == "Farm B"),
+        aes(xintercept = tau),
+        linetype = "dotted"
+      ) +
+
+      geom_text(
+        data = . %>% filter(Farm == "Farm B", ttime >= tau) %>% slice(1),
+        aes(x = tau, y = prevalence / 2, label = "tau"),
+        nudge_x = 25,
+        size = 5.5,
+        parse = TRUE) +
+      geom_point(
+        data = . %>% filter(Farm == "Farm B", ttime >= tau) %>% slice(1),
+        aes(x = tau, y = prevalence),
+        size = 2.5,
+        shape = 16
+      ) +
+      labs(alpha = NULL, y = "Prevalence", x = "time") +
+      labs(caption = glue("Kernel: {kernel}, and cell-shape: {celltype}")) +
+
+      theme_blank_background() +
+      NULL
+  })
+#'
+#'
 #'
 
 dev.off()
