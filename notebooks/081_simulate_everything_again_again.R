@@ -603,12 +603,141 @@ if (generate_animation_pdf) {
 
 }
 
+
+#' First calculate the maximum tau amongst them all
+tau_rstate %>%
+  enframe("configuration") %>%
+  unnest_wider(value) %>% unnest_wider(output) %>%
+  mutate(across(ends_with("_tau"), . %>% map_dbl(. %>% `[[`("tau")))) %>%
+  select(configuration, ends_with("_tau")) %>%
+  pivot_longer(
+    ends_with("_tau"),
+    names_to = c("kernel", ".value"),
+    names_pattern = "output_(\\w+)_(\\w+)"
+  ) %>%
+  summarise(tau_max = max(tau),
+            # 10% of time after tau
+            tau_10p = tau_max + tau_max / 10) ->
+  tau_max
+tau_max$tau_max
+tau_max$tau_10p
+
 if (plot_in_pdf_file) {
   pdf("plots_with_{post_tag}.pdf" %>%
         glue(),
       height = 2*6,
       width = 16 / 9 * (2*6))
 }
+
+#' Plot all instances:
+ttimes <- seq.default(0, tau_max$tau_max * 2, length.out = 300)
+
+tau_rstate %>%
+  enframe(name = "configuration") %>%
+  unnest_wider(value) %>%
+  unnest_wider(output) %>%
+  mutate(across(ends_with("_tau"), . %>% map_dbl(. %>% `[[`("tau")))) %>%
+  bind_cols(params1) %>%
+  mutate(n_cells_set = n_cells,
+         n_cells = map_dbl(grid, nrow)) %>%
+  slice_max(n_cells, n = 1, with_ties = FALSE, by = celltype) %>%
+  # onlt select c(kernel, celltype) for a high quality grid, as that's the only thing
+  # needed
+
+  glimpse() %>%
+  select(configuration, n_cells, celltype, ends_with("_tau"), starts_with("output_ode_model_")) %>%
+
+  #TODO: consider simply extracting the prevalences at the end of these..
+  mutate(
+    inverse_traj = map2(.progress = TRUE,
+                        output_ode_model_inverse,
+                        n_cells, ~ .x[[1]](ttimes)[, c(1, 1 + 2 * .y + 1:4), drop = FALSE]),
+    exp_traj = map2(.progress = TRUE,
+                    output_ode_model_exp,
+                    n_cells, ~ .x[[1]](ttimes)[, c(1, 1 + 2 * .y + 1:4), drop = FALSE]),
+    half_normal_traj = map2(.progress = TRUE,
+                            output_ode_model_half_normal,
+                            n_cells, ~ .x[[1]](ttimes)[, c(1, 1 + 2 * .y + 1:4), drop = FALSE]),
+  ) %>%
+
+  select(-starts_with("output_ode_model")) %>%
+
+  # add configuration params again?
+  # bind_cols(params1 %>% select(-n_cells)) %>%
+  # glimpse()
+  pivot_longer(
+    matches("\\w*_?(inverse|exp|half_normal)+_(\\w+)"),
+    names_pattern = "\\w*_?(inverse|exp|half_normal)+_(\\w+)",
+    names_to = c("kernel",".value"),
+  ) %>%
+  mutate(traj = traj %>% map(as_tibble)) %>%
+  unnest(c(traj, tau)) %>%
+  # glimpse() %>%
+  pivot_longer(
+    contains("prevalence_"),
+    names_pattern = "prevalence_(\\w+)",
+    names_to = c("Farm"),
+    values_to = "prevalence"
+  ) %>%
+
+  # ASSUME: COMMON TIME SCALE
+  select(-ends_with("traj_time"), ttime = time) %>%
+  mutate(Farm = fct(Farm, levels = c("source", "middle", "target", "population")),
+         Farm = fct_recode(
+           Farm,
+           `Farm A` = "source",
+           `Farm B` = "middle",
+           `Farm C` = "target",
+           `Population` = "population"
+         )) %>%
+
+  group_by(kernel, celltype) %>%
+  group_map(\(data, key) {
+    kernel <- key$kernel
+    celltype <- key$celltype
+
+    ggplot(data) +
+      aes(ttime, prevalence, group = str_c(configuration, celltype, kernel, Farm)) +
+      facet_grid(vars(Farm), scales = "fixed") +
+
+      # geom_line() +
+      geom_line(data = . %>%
+                  filter(ttime <= unique(tau))) +
+      geom_line(data = . %>%
+                  filter(ttime > unique(tau)), linetype = "dashed") +
+      geom_hline(
+        data = . %>% filter(Farm == "Farm B"),
+        aes(yintercept = 0.50),
+        linetype = "dotted"
+      ) +
+      geom_vline(
+        # data = . %>% filter(Farm == "Farm B"),
+        aes(xintercept = tau),
+        linetype = "dotted"
+      ) +
+
+      geom_text(
+        data = . %>% filter(Farm == "Farm B", ttime >= tau) %>% slice(1),
+        aes(x = tau, y = prevalence / 2, label = "tau"),
+        nudge_x = 25,
+        size = 5.5,
+        parse = TRUE) +
+      geom_point(
+        data = . %>% filter(Farm == "Farm B", ttime >= tau) %>% slice(1),
+        aes(x = tau, y = prevalence),
+        size = 2.5,
+        shape = 16
+      ) +
+      labs(alpha = NULL, y = "Prevalence", x = "time") +
+      labs(caption = glue("Kernel: {kernel}, and cell-shape: {celltype}")) +
+
+      theme_blank_background() +
+      NULL
+  })
+#'
+#'
+#'
+
 
 #' Plot the zones that are present
 #'
@@ -1060,22 +1189,6 @@ tau_hfirst_df %>%
 #' Produce simulation trajectory plot
 #'
 
-#' First calculate the maximum tau amongst them all
-tau_rstate %>%
-  enframe("configuration") %>%
-  unnest_wider(value) %>% unnest_wider(output) %>%
-  mutate(across(ends_with("_tau"), . %>% map_dbl(. %>% `[[`("tau")))) %>%
-  select(configuration, ends_with("_tau")) %>%
-  pivot_longer(
-    ends_with("_tau"),
-    names_to = c("kernel", ".value"),
-    names_pattern = "output_(\\w+)_(\\w+)"
-  ) %>%
-  summarise(tau_max = max(tau),
-            tau_10p = tau_max + tau_max / 10) ->
-  tau_max
-tau_max$tau_max
-
 tau_rstate %>%
   enframe() %>%
   unnest_wider(value) %>%
@@ -1260,114 +1373,6 @@ traj_models_data_ff %>%
       NULL
   })
 
-#' Plot all instances:
-ttimes <- seq.default(0, tau_max$tau_max * 2, length.out = 300)
-
-tau_rstate %>%
-  enframe(name = "configuration") %>%
-  unnest_wider(value) %>%
-  unnest_wider(output) %>%
-  mutate(across(ends_with("_tau"), . %>% map_dbl(. %>% `[[`("tau")))) %>%
-  bind_cols(params1) %>%
-  mutate(n_cells_set = n_cells,
-         n_cells = map_dbl(grid, nrow)) %>%
-  slice_max(n_cells, n = 1, with_ties = FALSE, by = celltype) %>%
-  # onlt select c(kernel, celltype) for a high quality grid, as that's the only thing
-  # needed
-
-  glimpse() %>%
-  select(configuration, n_cells, celltype, ends_with("_tau"), starts_with("output_ode_model_")) %>%
-
-  #TODO: consider simply extracting the prevalences at the end of these..
-  mutate(
-    inverse_traj = map2(.progress = TRUE,
-                        output_ode_model_inverse,
-                        n_cells, ~ .x[[1]](ttimes)[, c(1, 1 + 2 * .y + 1:4), drop = FALSE]),
-    exp_traj = map2(.progress = TRUE,
-                    output_ode_model_exp,
-                    n_cells, ~ .x[[1]](ttimes)[, c(1, 1 + 2 * .y + 1:4), drop = FALSE]),
-    half_normal_traj = map2(.progress = TRUE,
-                            output_ode_model_half_normal,
-                            n_cells, ~ .x[[1]](ttimes)[, c(1, 1 + 2 * .y + 1:4), drop = FALSE]),
-  ) %>%
-
-  select(-starts_with("output_ode_model")) %>%
-
-  # add configuration params again?
-  # bind_cols(params1 %>% select(-n_cells)) %>%
-  # glimpse()
-  pivot_longer(
-    matches("\\w*_?(inverse|exp|half_normal)+_(\\w+)"),
-    names_pattern = "\\w*_?(inverse|exp|half_normal)+_(\\w+)",
-    names_to = c("kernel",".value"),
-  ) %>%
-  mutate(traj = traj %>% map(as_tibble)) %>%
-  unnest(c(traj, tau)) %>%
-  # glimpse() %>%
-  pivot_longer(
-    contains("prevalence_"),
-    names_pattern = "prevalence_(\\w+)",
-    names_to = c("Farm"),
-    values_to = "prevalence"
-  ) %>%
-
-  # ASSUME: COMMON TIME SCALE
-  select(-ends_with("traj_time"), ttime = time) %>%
-  mutate(Farm = fct(Farm, levels = c("source", "middle", "target", "population")),
-         Farm = fct_recode(
-           Farm,
-           `Farm A` = "source",
-           `Farm B` = "middle",
-           `Farm C` = "target",
-           `Population` = "population"
-         )) %>%
-
-  group_by(kernel, celltype) %>%
-  group_map(\(data, key) {
-    kernel <- key$kernel
-    celltype <- key$celltype
-
-    ggplot(data) +
-      aes(ttime, prevalence, group = str_c(configuration, celltype, kernel, Farm)) +
-      facet_grid(vars(Farm), scales = "fixed") +
-
-      # geom_line() +
-      geom_line(data = . %>%
-                  filter(ttime <= unique(tau))) +
-      geom_line(data = . %>%
-                  filter(ttime > unique(tau)), linetype = "dashed") +
-      geom_hline(
-        data = . %>% filter(Farm == "Farm B"),
-        aes(yintercept = 0.50),
-        linetype = "dotted"
-      ) +
-      geom_vline(
-        # data = . %>% filter(Farm == "Farm B"),
-        aes(xintercept = tau),
-        linetype = "dotted"
-      ) +
-
-      geom_text(
-        data = . %>% filter(Farm == "Farm B", ttime >= tau) %>% slice(1),
-        aes(x = tau, y = prevalence / 2, label = "tau"),
-        nudge_x = 25,
-        size = 5.5,
-        parse = TRUE) +
-      geom_point(
-        data = . %>% filter(Farm == "Farm B", ttime >= tau) %>% slice(1),
-        aes(x = tau, y = prevalence),
-        size = 2.5,
-        shape = 16
-      ) +
-      labs(alpha = NULL, y = "Prevalence", x = "time") +
-      labs(caption = glue("Kernel: {kernel}, and cell-shape: {celltype}")) +
-
-      theme_blank_background() +
-      NULL
-  })
-#'
-#'
-#'
 
 if (plot_in_pdf_file) {
   dev.off()
