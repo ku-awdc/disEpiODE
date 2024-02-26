@@ -34,12 +34,15 @@ world_landscape <- world$landscape
 
 params1 <- tidyr::expand_grid(
   world_scale = world_scale,
+  seed_infection_proportion = 1 / 2,
   beta_baseline = 0.05,
   sigma_inv = 100,
   sigma_exp = 12.6161672832572,
   sigma_half_normal = 0.0845580197025075,
-  buffer_offset_percent = 0.2,
-  buffer_radius = 0.15,
+  # buffer_offset_percent = 0.2,
+  buffer_offset_percent = 0.1,
+  # buffer_radius = 0.15,
+  buffer_radius = 0.15 / 2,
   #TODO: make sure to calculate `cellarea` in the below plot, and
   # provide the same plots but as a function of `n`, but then you cannot
   # compare between `square` and `triangle`, as same choice of `n` leads to different
@@ -140,7 +143,8 @@ kernel_levels <- c("inverse", "exp", "half_normal")
 celltype_levels <- c("triangle", "square", "hexagon")
 # pmap(params1,.progress = TRUE,
 future_pmap(params1, .progress = TRUE,
-            \(world_scale, beta_baseline, buffer_offset_percent, buffer_radius,
+            \(world_scale, seed_infection_proportion,
+              beta_baseline, buffer_offset_percent, buffer_radius,
               cellarea, n_cells, celltype, middle, hmax, mode,
               sigma_inv, sigma_exp, sigma_half_normal) {
               #FIXME: `mode` is unused, and needs to be removed "later"
@@ -264,7 +268,10 @@ future_pmap(params1, .progress = TRUE,
 
               carry_density <- sum(grid$carry) / world_scale**2
               infection_mass <- source_zone_area * carry_density
-              infection_mass <- 0.5 * infection_mass
+              # infection_mass <- 0.5 * infection_mass
+              stopifnot("`seed_infection_proportion` must be between 0 and 1" =
+                          1 >= seed_infection_proportion && seed_infection_proportion > 0 )
+              infection_mass <- seed_infection_proportion * infection_mass
 
               # skip susceptibles i.e nrow(grid) then add only to id_overlap tiles.
               y_init[nrow(grid) + source_overlap$id_overlap] <-
