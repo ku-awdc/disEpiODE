@@ -4,6 +4,8 @@
 #'
 hex_size <- NA
 hex_flat_top <- FALSE
+cx <- 0
+cy <- 0
 hex_width <- 2 * hex_size
 hex_height <- sqrt(3) * hex_size
 
