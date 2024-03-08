@@ -55,7 +55,9 @@ p_ncells_plot <- generate_grids %>%
        x = "Cell area",
        y = "Total number of cells") +
   theme_blank_background()
-p_ncells_plot + aes(y = mean_actual_cellarea) + labs(y = "Avg. cell areas in grid") +
+p_ncells_plot + aes(y = mean_actual_cellarea) +
+  labs(y = "Avg. cell areas in grid",
+       x = "Preset cell area") +
 
   # geom_abline(intercept = 0, slope = -1, linetype = "dotted") +
   # scale_x_reverse() +
@@ -71,13 +73,11 @@ p_ncells_plot + aes(y = mean_actual_cellarea) + labs(y = "Avg. cell areas in gri
   # stat_function(fun = function(x) x, linetype = "dotted") +
 
   # coord_equal() +
-  # expand_limits(y = 1) +
-  geom_rug(sides = "b", length = unit(0.03 / 3, "npc")) +
-  # geom_rug(sides = "b", length = unit(0.03 / 3, "npc"), aes(color = celltype),
-  #          position = position_dodge(width = 0.5, preserve = "total")
-  #          ) +
+  expand_limits(y = 1) +
+  # geom_rug(sides = "b", length = unit(0.03 / 3, "npc")) +
+
   NULL
-p_ncells_plot
+# p_ncells_plot
 #'
 #'
 # DEBUG

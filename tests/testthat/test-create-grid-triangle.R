@@ -47,20 +47,23 @@ test_that("testing generated grids", {
     n = 100,
     min_cellarea = 1 / 2000, max_cellarea = 1)
   for (cellarea in cellareas) {
-    expect_no_error(g_tri <- create_grid(landscape_sf, cellarea = cellarea, celltype = "triangle"))
-    expect_no_error(g_sq <- create_grid(landscape_sf, cellarea = cellarea, celltype = "square"))
-    expect_no_error(g_hex <- create_grid(landscape_sf, cellarea = cellarea, celltype = "hexagon"))
+    for (middle in c(FALSE, TRUE)) {
 
-    expect_true(
-      g_sq$geometry %>% vapply(\(x) unclass(x) %>% `[[`(1) %>% nrow(), integer(1)) %>%
-        all(. == 4 + 1)
-    )
-    expect_true(
-      g_tri$geometry %>% vapply(\(x) unclass(x) %>% `[[`(1) %>% nrow(), integer(1)) %>%
-        all(. == 3 + 1)
-    )
-    # g_hex$geometry %>% vapply(\(x) unclass(x) %>% `[[`(1) %>% nrow(), integer(1)) %>%
-    #   all(. == 6 + 1) # doesn't work because of the border
+      expect_no_error(g_tri <- create_grid(landscape_sf, cellarea = cellarea, middle = middle, celltype = "triangle"))
+      expect_no_error(g_sq <- create_grid(landscape_sf,  cellarea = cellarea, middle = middle, celltype = "square"))
+      expect_no_error(g_hex <- create_grid(landscape_sf, cellarea = cellarea, middle = middle, celltype = "hexagon"))
 
+      expect_true(
+        g_sq$geometry %>% vapply(\(x) unclass(x) %>% `[[`(1) %>% nrow(), integer(1)) %>%
+          all(. == 4 + 1)
+      )
+      expect_true(
+        g_tri$geometry %>% vapply(\(x) unclass(x) %>% `[[`(1) %>% nrow(), integer(1)) %>%
+          all(. == 3 + 1)
+      )
+      # g_hex$geometry %>% vapply(\(x) unclass(x) %>% `[[`(1) %>% nrow(), integer(1)) %>%
+      #   all(. == 6 + 1) # doesn't work because of the border
+
+    }
   }
 })
