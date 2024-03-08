@@ -121,8 +121,10 @@ half_normal_sigma <- function(distance, sigma = 1) {
 beta_mat_list <- c("inverse", "exp", "half_normal")
 # beta_mat_list <- c("half_normal")
 
-#' This needs to be set for each new "configuration" to get accurate estimates
-#' of tau.
+
+world <- create_landscape(scale = world_scale)
+world_landscape <- world$landscape
+
 #TODO: make into a list that errors if accessing an undefined element
 hmax_list <- list(
   # see output for eventual variables to set here
@@ -150,9 +152,6 @@ future_pmap(params1, .progress = TRUE,
                                          buffer_offset_percent = buffer_offset_percent)
               middle_buffer <- get_middle_buffer(source_target = source_target,
                                                  buffer_radius = buffer_radius)
-
-              world <- create_landscape(scale = world_scale)
-              world_landscape <- world$landscape
 
               all_buffers <-
                 rbind(source_target, middle_buffer) %>%
@@ -632,9 +631,9 @@ params1 %>%
     common_area <- 1 / 42
 
     bind_rows(
-      triangle = create_grid(landscape_sf, cellarea = common_area, celltype = "triangle"),
-      square = create_grid(landscape_sf,   cellarea = common_area, celltype = "square"),
-      hexagon = create_grid(landscape_sf,  cellarea = common_area, celltype = "hexagon"),
+      triangle = create_grid(world_landscape, cellarea = common_area, celltype = "triangle"),
+      square = create_grid(world_landscape,   cellarea = common_area, celltype = "square"),
+      hexagon = create_grid(world_landscape,  cellarea = common_area, celltype = "hexagon"),
       .id = "celltype"
     ) %>%
       mutate(celltype = fct_inorder(celltype)) %>%
