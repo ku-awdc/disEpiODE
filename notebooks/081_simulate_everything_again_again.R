@@ -897,7 +897,8 @@ params1 %>%
             legend.direction = "horizontal",
             # legend.justification = "left",
             axis.text = element_blank(),
-            axis.ticks = element_blank()) +
+            axis.ticks = element_blank()
+          ) +
           theme_blank_background() +
           NULL
       }
@@ -1112,7 +1113,8 @@ tau_plot_data %>%
   theme_reverse_arrow_x() +
   theme_blank_background() +
   theme(
-    axis.text = element_text(size = 12)) +
+    axis.text = element_text(size = 12)
+  ) +
   theme(
     strip.text = element_text(size = 12),
     # legend.title = element_text(size = 15),
@@ -1132,8 +1134,7 @@ tau_plot_data %>%
         triangle = "Triangle",
         square = "Square",
         hexagon = "Hexagon"
-      ),
-      axis.labels = "margins"
+      )
       # celltype = c(triangle = "\u29C5", square = "\u25A1", hexagon = "\u2B21")
     )
   ) +
@@ -1237,19 +1238,8 @@ output_prevalence_at_tau_plot_df %>%
   expand_limits(y = 0) +
 
   # facet_wrap(prevalence_level~kernel) +
-  # facet_grid(farm ~ kernel, scales = "free_y") +
-  facet_grid(farm ~ kernel, scales = "free_y", axis.labels = "all_y") +
-  # theme(strip.placement = "inside") +
-  theme(legend.box.margin = margin(),
-        legend.margin = margin(),
-        ) +
+  facet_grid(farm ~ kernel, scales = "free_y") +
   NULL
-
-ggsave(
-  device = svglite::svglite,
-  scale = 2,
-  filename = glue("figures/{post_tag}_prevalence_in_zones.svg")
-)
 
 
 tau_hfirst_df <- tau_rstate %>%
@@ -1458,11 +1448,11 @@ if (source_seed_prevalence %>% count(celltype) %>%
     ) +
     scale_x_log10_rev() +
     theme_reverse_arrow_x() +
-    facet_grid(rows = vars(celltype), cols = vars(kernel)
-    ) +
+    facet_grid(rows = vars(celltype), cols = vars(kernel)) +
     labs(
       x = "Set cellarea", y = "Prevalence at Farm A",
-      color = NULL, caption = "Across all grids, at time = 0") +
+      color = NULL, caption = "Across all grids, at time = 0"
+    ) +
     theme(legend.position = "bottom") +
     theme_blank_background()
 
@@ -1487,7 +1477,8 @@ if (source_seed_prevalence %>% count(celltype) %>%
     # coord_flip() +
     labs(
       x = "Set cellarea", y = "Prevalence at Farm A",
-      color = NULL, caption = "Across all grids, at time = 0") +
+      color = NULL, caption = "Across all grids, at time = 0"
+    ) +
     theme(legend.position = "bottom") +
     guides(color = guide_legend(override.aes = list(fill = NA, linewidth = 1.5))) +
     theme_blank_background()

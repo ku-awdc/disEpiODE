@@ -22,7 +22,7 @@ ggplot() +
   # geom_sf(data = grids %>% st_centroid(), fill = NA, show.legend = FALSE, shape = "×") +
   # facet_wrap(center_as_centroid~celltype, labeller = label_both) +
   geom_sf(data = st_centroid(landscape), color = "black", size = 4, shape = "o") +
-  theme_grid_plot() +
+  # theme_grid_plot() +
   theme_blank_background() +
   theme(legend.position = "bottom") +
   # scale_fill_viridis_d(direction = -1) +
@@ -54,7 +54,7 @@ ggplot() +
   geom_sf(data = grids %>% st_centroid, fill = NA, show.legend = FALSE, shape = "×") +
   facet_wrap(center_as_centroid~celltype, labeller = label_both) +
   geom_sf(data = st_centroid(landscape), color = "black", size = 4, shape = "o") +
-  theme_grid_plot() +
+  # theme_grid_plot() +
   theme_blank_background() +
   theme(legend.position = "bottom") +
   # scale_fill_viridis_d(direction = -1) +

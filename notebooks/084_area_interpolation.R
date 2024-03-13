@@ -1,9 +1,18 @@
-world_landscape <- create_landscape(1)$landscape
+world_scale <- 1
 
+world_landscape <-  st_polygon(
+  x = list(
+    world_scale *
+      rbind(c(0, 0), c(1, 0), c(1, 1), c(0, 1), c(0, 0))
+  )
+)
+
+center_as_centroid <- FALSE
 centroid_coords <- c(0.5, 0.5)
 
 seq_grid <- seq_cellarea(n = 150,
-                         min_cellarea = 1 / 3000, max_cellarea = 1) %>%
+                         min_cellarea = 1 / 3000,
+                         max_cellarea = 1) %>%
   map(\(cellarea) {
     cellsize <- sqrt(cellarea)
     cellsize <- c(cellsize, cellsize)
@@ -21,12 +30,24 @@ seq_grid <- seq_cellarea(n = 150,
     offset <- offset_sign * cellsize  + offset
     offset <- -offset
 
-    grid <- st_make_grid(
-      world_landscape,
-      cellsize = cellsize,
-      square = TRUE,
-      offset = offset
-    ) %>%
+    grid <-
+      if (center_as_centroid) {
+        st_make_grid(
+          world_landscape,
+          cellsize = cellsize,
+          square = TRUE,
+          offset = offset
+        )
+      } else {
+        st_make_grid(
+          world_landscape,
+          cellsize = cellsize,
+          square = TRUE,
+          offset = offset
+        )
+      }
+
+    grid <- grid %>%
       st_intersection(world_landscape) %>%
       st_sf() %>%
       # amend properties of the grid,
@@ -38,7 +59,10 @@ seq_grid <- seq_cellarea(n = 150,
       st_centroid() %>%
       st_geometry() %>%
       unlist(recursive = TRUE, use.names = FALSE)
-    stopifnot(all.equal(center_cell_centroid, c(0.5,0.5)))
+    stopifnot(
+      (center_as_centroid && all.equal(center_cell_centroid, c(0.5,0.5))) ||
+        !center_as_centroid
+    )
     # print(center_cell_centroid)
 
     grid
@@ -61,7 +85,7 @@ p_grids <- ggplot() +
 
   # geom_sf(data = seq_grid[[4]], fill = NA) +
   geom_sf(data = seq_grid[[7]], fill = NA) +
-  # geom_sf(data = seq_grid[[1]], fill = NA) +
+  geom_sf(data = seq_grid[[100]], fill = NA) +
   # geom_sf(data = seq_grid[[length(seq_grid)]], fill = NA) +
 
   geom_sf(
@@ -82,64 +106,8 @@ middle_zone %>%
   mutate(infected = st_area(geometry) / 2,
          prevalence = infected / st_area(geometry))
 #'
-#' prevalence_interpolation <-
-#'   seq_grid %>%
-#'   # grid -> circle
-#'   map(
-#'     \(grid)
-#'     st_interpolate_aw(
-#'       middle_zone %>% mutate(infected = st_area(.) / 2),
-#'       grid,
-#'       extensive = TRUE
-#'     )
-#'   ) %>%
-#'
-#'   # .Last.value -> A
-#'
-#'   # ggplot() + geom_sf(data = A[[4]], aes(fill = infected))
-#'   # what's the prevalence in the grid cells inside of the circle?
-#'   map(\(grid) grid %>% mutate(prevalence = infected / st_area(grid))) %>%
-#'   # grid(circle) -> circle, what's the prevalence in the circle
-#'   map(\(grid) st_interpolate_aw(
-#'     grid, middle_zone, extensive = FALSE
-#'   )) %>%
-#'   # walk(
-#'   #   \(grid) {
-#'   #     plot(grid)
-#'   #   }
-#'   # )
-#'   # map(\(grid)
-#'   #     bind_cols(
-#'   #       grid %>% st_drop_geometry() %>% select(infected),
-#'   #       st_interpolate_aw(
-#'   #         grid %>% select(-infected),
-#'   #         middle_zone, extensive = FALSE
-#' #       ))) %>%
-#' # print() %>%
-#' bind_rows(.id = "id_grid") %>%
-#'   identity()
-#' prevalence_interpolation %>% glimpse()
-#' #'
-#' #'
-#' #'
-#' prevalence_interpolation %>%
-#'   mutate(id_grid = as.numeric(id_grid)) %>%
-#'   st_drop_geometry() %>%
-#'   pivot_longer(c(infected, prevalence)) %>%
-#'   glimpse() %>%
-#'   ggplot() +
-#'   aes(id_grid, value, group = name) +
-#'   geom_line(aes(color = name)) +
-#'
-#'   facet_wrap(~name, scales = "free_y") +
-#'   theme_blank_background() +
-#'   NULL
 #'
 #'
-#' Let's project the prevalence directly
-#'
-#'
-
 middle_zone_init <-
   middle_zone %>%
   mutate(infected = st_area(geometry) / 2,
@@ -150,6 +118,7 @@ id_grid_set_cellarea <- seq_grid %>%
   bind_rows(.id = "id_grid")
 
 seq_grid %>%
+  # interpolate from zone onto grid
   map(\(grid) {
     # st_interpolate_aw(
     #   middle_zone_init,
@@ -169,6 +138,8 @@ seq_grid %>%
       )
     ) %>% st_sf(sf_column_name = "geometry")
   }) %>%
+
+  # interpolate from grid (within zone) onto zone again
   map(\(grid) {
     bind_cols(
       st_interpolate_aw(
@@ -186,9 +157,8 @@ seq_grid %>%
   # identity()
   map(st_drop_geometry) %>%
   bind_rows(.id = "id_grid") %>%
-  # View() %>%
-  # glimpse()
 
+  # add cellarea_set to the calculations
   left_join(id_grid_set_cellarea) %>%
 
   mutate(id_grid = as.numeric(id_grid)) %>%
