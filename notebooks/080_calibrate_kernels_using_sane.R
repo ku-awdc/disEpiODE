@@ -1,6 +1,8 @@
 
 
-# devtools::load_all(reset = FALSE)
+devtools::load_all(reset = FALSE)
+
+#FIXME: add `seed_infection_proportion` to this!
 
 # total_cells <- 250
 beta_baseline <- 0.05
@@ -21,7 +23,11 @@ landscape_sf <- st_sfc(
 
 p_landscape <- ggplot() +
   geom_sf(data = landscape_sf, fill = NA) +
-  theme_grid_plot() +
+  coord_sf(expand = FALSE) +
+  theme(
+    axis.text = element_blank(),
+    axis.ticks = element_blank()
+  ) +
   theme_blank_background() +
   NULL
 
@@ -29,7 +35,8 @@ p_landscape
 
 # square_big_grid <- create_grid(landscape_sf, n = 250,  celltype = "square")
 #NOTE: not used later on
-square_big_grid <- create_grid(landscape_sf, n = floor(sqrt(total_cells)),
+square_big_grid <- create_grid(landscape_sf,
+                               n = floor(sqrt(250)),
                                celltype = "square")
 
 square_big_grid
@@ -72,6 +79,7 @@ stopifnot(
 
 
 rough_optim <- function(pars = c(sigma_exp, sigma_half_normal),
+                        beta_baseline = 0.05,
                         sigma_inv = 30, total_cells = 750, plot = FALSE) {
 
   sigma_exp <- pars[1]
@@ -100,19 +108,20 @@ rough_optim <- function(pars = c(sigma_exp, sigma_half_normal),
                       n = floor(sqrt(total_cells)),
                       celltype = "square")
   grid
-  p_landscape +
-    geom_sf(data = grid, fill = NA) +
-    geom_sf_text(aes(label = "🐷", geometry = buffer_point),
-                 size = 10,
-                 data = all_buffers) +
-    geom_sf(data = all_buffers,
-            aes(geometry = buffer_polygon, color = label),
-            linewidth = 1,
-            fill = NA) +
-    theme(
-      axis.title = element_blank(),
-      legend.position = "bottom",
-      legend.justification = "center")
+  print(
+    p_landscape +
+      geom_sf(data = grid, fill = NA) +
+      geom_sf_text(aes(label = "🐷", geometry = buffer_point),
+                   size = 10,
+                   data = all_buffers) +
+      geom_sf(data = all_buffers,
+              aes(geometry = buffer_polygon, color = label),
+              linewidth = 1,
+              fill = NA) +
+      theme(
+        axis.title = element_blank(),
+        legend.position = "bottom",
+        legend.justification = "center"))
   #TODO: calculate n if cellarea is provided, and vice versa
 
   grid <- grid %>% rowid_to_column("id")
@@ -319,19 +328,20 @@ rough_optim <- function(pars = c(sigma_exp, sigma_half_normal),
 sigma_inv <- 100
 sigma_exp <- 7.24
 sigma_half_normal <- 0.13494
-beta_baseline <- 0.5
-rough_optim(c(sigma_exp, sigma_half_normal), sigma_inv, 750, TRUE)
+beta_baseline <- 0.05
+rough_optim(c(sigma_exp, sigma_half_normal), beta_baseline = beta_baseline,
+            sigma_inv, 750, TRUE)
 
-rough_optim(c(sigma_exp, sigma_half_normal), sigma_inv, 500, TRUE)
-rough_optim(c(sigma_exp, sigma_half_normal), sigma_inv, 750, TRUE)
-rough_optim(c(sigma_exp, sigma_half_normal), sigma_inv, 1000, TRUE)
-rough_optim(c(sigma_exp, sigma_half_normal), sigma_inv, 2000, TRUE)
-rough_optim(c(sigma_exp, sigma_half_normal), sigma_inv, 5000, TRUE)
+rough_optim(c(sigma_exp, sigma_half_normal), beta_baseline = beta_baseline, sigma_inv, 500, TRUE)
+rough_optim(c(sigma_exp, sigma_half_normal), beta_baseline = beta_baseline, sigma_inv, 750, TRUE)
+rough_optim(c(sigma_exp, sigma_half_normal), beta_baseline = beta_baseline, sigma_inv, 1000, TRUE)
+rough_optim(c(sigma_exp, sigma_half_normal), beta_baseline = beta_baseline, sigma_inv, 2000, TRUE)
+rough_optim(c(sigma_exp, sigma_half_normal), beta_baseline = beta_baseline, sigma_inv, 5000, TRUE)
 # rough_optim(c(sigma_exp, sigma_half_normal), sigma_inv, 10000, TRUE)
 
 
 ### NOTE: `dist_grid` for optim will be based on the last-run total_cells for rough_optim
-rough_optim(c(sigma_exp,sigma_half_normal), sigma_inv, 1500, TRUE)
+rough_optim(c(sigma_exp,sigma_half_normal), beta_baseline = beta_baseline, sigma_inv, 1500, TRUE)
 dim(dist_grid)
 
 
@@ -495,12 +505,57 @@ tibble(distance = seq.default(0, 1, length.out = 200),
                names_to = c("kernel"),
                names_pattern = "kernel_(.*)",
                values_to = "weight") %>%
+  mutate(kernel = fct(kernel, levels = c("inv", "exp", "half_normal"))) %>%
   ggplot() +
   aes(x = distance, y = weight, group = kernel) +
   geom_line(aes(color = kernel)) +
+
+  labs(color = NULL) +
+  guides(color = guide_legend(override.aes = list(linewidth = 2)))+
+  theme_grey() +
   theme_blank_background() +
   theme(legend.position = "bottom") +
+  theme(legend.margin = margin(),
+        legend.box.margin = margin()) +
   NULL
+
+ggsave(
+  device = svglite::svglite,
+  scale = 2,
+  filename = "figures/calibrated_distance_kernels.svg"
+)
+# Saving 4.62 x 3.23 in image
+# Saving 5.3 x 3.75 in image
+
+
+tibble(distance = seq.default(0, 25, length.out = 200),
+       kernel_inv = inv_sigma(distance, sigma = 1),
+       kernel_exp = exp_sigma(distance, sigma = 1),
+       kernel_half_normal = half_normal_sigma(distance, sigma = 1),
+) %>%
+  pivot_longer(starts_with("kernel"),
+               names_to = c("kernel"),
+               names_pattern = "kernel_(.*)",
+               values_to = "weight") %>%
+  mutate(kernel = fct(kernel, levels = c("inv", "exp", "half_normal"))) %>%
+  ggplot() +
+  aes(x = distance, y = weight, group = kernel) +
+  geom_line(aes(color = kernel)) +
+
+  labs(color = NULL) +
+  guides(color = guide_legend(override.aes = list(linewidth = 2)))+
+  theme_grey() +
+  theme_blank_background() +
+  theme(legend.position = "bottom") +
+  theme(legend.margin = margin(),
+        legend.box.margin = margin()) +
+  NULL
+
+ggsave(
+  device = svglite::svglite,
+  scale = 2,
+  filename = "figures/uncalibrated_distance_kernels.svgibrated_distance_kernels.svg"
+)
 
 
 beepr::beep()
