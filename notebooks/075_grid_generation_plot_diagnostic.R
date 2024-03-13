@@ -55,7 +55,11 @@ p_ncells_plot <- generate_grids %>%
        x = "Cell area",
        y = "Total number of cells") +
   theme_blank_background()
-p_ncells_plot + aes(y = mean_actual_cellarea) +
+
+
+
+p_ncells_plot +
+  aes(y = mean_actual_cellarea) +
   labs(y = "Avg. cell areas in grid",
        x = "Preset cell area") +
 
@@ -77,6 +81,8 @@ p_ncells_plot + aes(y = mean_actual_cellarea) +
   # geom_rug(sides = "b", length = unit(0.03 / 3, "npc")) +
 
   NULL
+
+
 # p_ncells_plot
 #'
 #'
