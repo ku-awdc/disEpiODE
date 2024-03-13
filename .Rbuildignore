@@ -6,6 +6,6 @@
 ^output$
 ^run\.R$
 ^run\.sh$
-^*\.pdf$
-^*\.png$
+^\.pdf$
+^\.png$
 ^justfile$
