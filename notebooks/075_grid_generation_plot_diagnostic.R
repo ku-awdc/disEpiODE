@@ -43,23 +43,10 @@ generate_grids <- generate_grids %>%
   )
 
 p_ncells_plot <- generate_grids %>%
+  mutate(celltype = fct(celltype, c("triangle", "square", "hexagon"))) %>%
   ggplot() +
   aes(cellarea, n) +
   geom_step(aes(color = celltype)) +
-  # geom_point(aes(color = celltype)) +
-  # geom_step(aes(color = celltype), position = position_jitter(height = 0.01)) +
-  # geom_step(aes(color = celltype), position = position_jitter(height = 0.01)) +
-  # geom_line(aes(color = celltype)) +
-
-  # stat_function(fun = ~ -.x) +
-  # geom_abline(slope = log10(0), slope = 1) +
-  # geom_abline(aes(intercept = 0, slope = 1,
-  #                 y = stage(after_scale = y))) +
-
-  # scale_x_log10_rev() +
-  # theme_reverse_arrow_x() +
-  # scale_y_log10() +
-
   theme(legend.position = "bottom") +
   labs(
     color = NULL,
@@ -67,6 +54,26 @@ p_ncells_plot <- generate_grids %>%
     y = "Total number of cells"
   ) +
   theme_blank_background()
+
+
+p_ncells_plot +
+  geom_abline(intercept = 0, slope = 1, linetype = "dotted") +
+  # stat_function(fun = function(x) log10(x), linetype = "dotted") +
+  # aes(y = 1 / n) +
+  scale_x_log10_rev() +
+  theme_reverse_arrow_x() +
+  scale_y_log10() +
+  # stat_function(fun = function(x) log1p(-x), linetype = "dotted") +
+
+  labs(x = "Set cellarea") +
+
+  NULL
+
+ggsave(
+  device = svglite::svglite,
+  scale = 2.5,
+  filename = glue("figures/grid_diagnostic_log_log_plot.svg")
+)
 
 
 
