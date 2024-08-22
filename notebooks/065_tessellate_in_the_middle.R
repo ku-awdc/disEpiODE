@@ -4,7 +4,7 @@
 # Clean the `output` directory, if it is there.
 # disEpiODE:::clear_output_dir()
 # options(error = recover)
-# devtools::load_all()
+devtools::load_all()
 library(disEpiODE)
 
 library(future)
