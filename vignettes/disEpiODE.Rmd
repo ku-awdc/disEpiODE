@@ -1,0 +1,97 @@
+---
+title: "disEpiODE"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{disEpiODE}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+The disEpiODE package provides utility functions to create and discretise landscapes using square, hexagonal and triangular grids, and then apply a deterministic SI disease model to the grid.  The package is mostly intended to support the publication "Choice of Landscape Discretisation Method Affects the Inferred Rate of Spread in Wildlife Disease Spread Models" by Reimert et al (in review), but may also be useful for other work.
+
+This vignette describes the basic steps required to re-create (and perhaps modify) the analyses presented in the publication.
+
+
+## Package installation
+
+The latest stable version of the package can be installed from our drat repository as follows:
+
+```{r eval=FALSE}
+install.packages("disEpiODE", repos=c("https://cran.rstudio.com/", "https://ku-awdc.github.io/drat/"))
+```
+
+Alternatively, the development version can be installed directly from GitHub using the remotes package:
+
+```{r eval=FALSE}
+install.packages("remotes")  # if necessary
+remotes::install_github("https://github.com/ku-awdc/disEpiODE")
+```
+
+Both of these methods should also install the dependent packages, including deSolve (although the remotes package may need to . Binary versions of the package are not provided because the package does not contain compiled code, so should be installable from source on all platforms.
+
+Once the package is installed, it can be loaded as usual.  We will also be using the sf and ggplot packages to visualise the process:
+
+```{r}
+library("disEpiODE")
+library("sf")
+library("ggplot2")
+theme_set(theme_light())
+```
+
+
+## Creating a landscape
+
+The first step is to create a landscape.  The spatial scale is arbitrary, so we use a unit square:
+
+```{r}
+area <- 1.0
+landscape <- create_landscape(area)$landscape
+ggplot(landscape) + geom_sf()
+```
+
+We should then create the grid - either hexagonal, triangular or square - with given cell size based on the desired number of cells.
+
+```{r}
+n_cells <- 100
+
+grid_hex <- create_grid(landscape, cellarea = area/n_cells, celltype = "hexagon")
+ggplot() +
+  geom_sf(data=landscape) +
+  geom_sf(data=grid_hex)
+```
+
+This can be compared to e.g. a triangular grid with 500 cells:
+
+```{r}
+n_cells <- 500
+
+grid_tri <- create_grid(landscape, cellarea = area/n_cells, celltype = "triangle")
+ggplot() +
+  geom_sf(data=landscape) +
+  geom_sf(data=grid_tri)
+```
+
+## Placing farms
+
+
+
+We then need to add the farms and their area of influence.  
+
+## Selecting a kernel
+
+
+
+## Running a disease model
+
+
+
+## Summarising results
+
+

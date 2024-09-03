@@ -20,5 +20,9 @@ Imports:
     rlang,
     scales
 Suggests: 
+    knitr,
+    ggplot2,
+    rmarkdown,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
+VignetteBuilder: knitr
