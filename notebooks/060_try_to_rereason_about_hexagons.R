@@ -58,6 +58,8 @@ stopifnot(
   ))
 )
 
+plot.new()
+
 
 ggplot() +
   geom_sf(data = hex_grid,

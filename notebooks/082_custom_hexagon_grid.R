@@ -1,4 +1,4 @@
-
+devtools::load_all()
 #' @param hex_size radius of outer circle
 #' @param flat_top `logical(1)` orientation of hexagons
 #'
@@ -44,6 +44,9 @@ if (hex_flat_top) {
 #' a jagged part that is part of the square, but not part of hexagon.
 #'
 #'
+
+
+
 
 
 landscape_sf <- st_sfc(

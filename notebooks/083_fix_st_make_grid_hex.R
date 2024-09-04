@@ -1,3 +1,4 @@
+devtools::load_all() 
 
 landscape_sf <- st_sfc(
   st_polygon(
@@ -46,7 +47,8 @@ ggplot() +
   geom_sf(data = landscape_padding, fill = NA) +
   geom_sf(data = landscape, fill = NA) +
 
-  theme_grid_plot()
+  # theme_grid_plot()
+  NULL
 
 ggplot() +
   geom_sf(data = landscape, fill = NA, linetype = "dashed", aes(color = "landscape")) +
@@ -62,5 +64,5 @@ ggplot() +
   labs(color = NULL, fill = NULL) +
 
   theme_blank_background() +
-  theme_grid_plot() +
+  # theme_grid_plot() +
   NULL

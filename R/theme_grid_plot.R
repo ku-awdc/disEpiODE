@@ -5,8 +5,7 @@
 #'
 #' @examples
 theme_grid_plot <- function() {
-
-  coord_sf(expand = FALSE) +
+  # coord_sf(expand = FALSE) +
     theme_blank_background() +
     theme(
       axis.text = element_blank(),
