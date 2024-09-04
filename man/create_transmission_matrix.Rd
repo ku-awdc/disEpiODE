@@ -2,12 +2,21 @@
 % Please edit documentation in R/create_transmission_matrix.R
 \name{create_transmission_matrix}
 \alias{create_transmission_matrix}
+\alias{create_kernel}
 \title{Title}
 \usage{
-create_transmission_matrix(grid, kernel, ...)
+create_transmission_matrix(grid, kernel)
+
+create_kernel(type = c("exponential", "half-normal", "inverse"), sigma = 1)
 }
 \arguments{
-\item{...}{parameter(s) passed to the kernel, after distance}
+\item{grid}{qn object created by \code{create_grid}}
+
+\item{kernel}{a function (such as that created by \code{create_kernel}) taking a single vectorised parameter (distance) and returning a non-negative numeric vector of equal length. An input distance of zero must give an output of one.}
+
+\item{type}{the kernel type: one of exponential, half-normal or inverse}
+
+\item{sigma}{the scale parameter for the kernel}
 }
 \description{
 Title

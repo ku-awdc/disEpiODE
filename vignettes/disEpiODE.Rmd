@@ -59,13 +59,22 @@ ggplot(landscape) + geom_sf()
 We should then create the grid - either hexagonal, triangular or square - with given cell size based on the desired number of cells.  We can also specify a rotation angle (in degrees):
 
 ```{r}
-grid_hex <- create_grid(landscape, cellarea = 0.01, celltype = "hexagon", rotate = 45)
+grid <- create_grid(landscape, cellarea = 0.01, celltype = "hexagon", rotate = 45)
 ggplot() +
   geom_sf(data=landscape) +
-  geom_sf(data=grid_hex)
+  geom_sf(data=grid)
 ```
 
-This can be compared to e.g. a triangular grid with area of 0.002 and a rotation of 15 degrees:
+This can be compared to e.g. a simple square grid:
+
+```{r}
+grid_sq <- create_grid(landscape, cellarea = 0.01, celltype = "square")
+ggplot() +
+  geom_sf(data=landscape) +
+  geom_sf(data=grid_sq)
+```
+
+Or a more complex triangular grid with area of 0.002 and a rotation of 15 degrees:
 
 ```{r}
 grid_tri <- create_grid(landscape, cellarea = 0.002, celltype = "triangle", rotate=15)
@@ -73,6 +82,18 @@ ggplot() +
   geom_sf(data=landscape) +
   geom_sf(data=grid_tri)
 ```
+
+
+
+
+Note that the number of patches can be inspected from the number of rows in the grid. This may be more than implied by the input area due to the presence of partial patches intersecting the bounday of the landscape:
+
+```{r}
+nrow(grid); 1/0.01
+nrow(grid_sq); 1/0.01
+nrow(grid_tri); 1/0.002
+```
+
 
 ## Placing farms and setting initial infection
 
@@ -96,20 +117,30 @@ init <- create_initial_state(grid, overlap, start_prev=0.5)
 
 ## Select a kernel and generate a transmission matrix
 
+We also need to define a transmission kernel. This can be any user-specified function that takes a numeric (non-negative) vector of inputs and returns a numeric (non-negative) vector of equal length, with the additional constraint that input values of zero must map to an output of one, representing within-patch transmission. Output for strictly positive inputs can therefore be interpreted as being relative to within-patch transmission. It would be usual for the kernel to be monotonically decreasing, but this is not strictly necessary for the code.
 
-```{r eval=FALSE}
-## Matt TODO
-create_transmission_matrix(grid, inv_sigma, sigma=1)
-## Note: kernel must be equal to 1 at distance = 0, i.e. diagonal ==1
+A helper function to generate an inverse/half-normal/expontential kernel with arbitrary sigma value is provided by the package:
+
+```{r}
+kernel <- create_kernel("inverse", sigma=100)
+kernel(seq(0,0.5,by=0.1))
 ```
 
+Once the grid and kernel are available, a transmission matrix can be generated. This will always be a symmetric matrix with dimension equal to the number of patches, and a diagnonal of one.
+
+```{r}
+beta_matrix <- create_transmission_matrix(grid, kernel)
+nrow(grid)
+dim(beta_matrix)
+beta_matrix[1:5,1:5]
+```
 
 
 ## Running a disease model
 
 ```{r eval=FALSE}
 ## Mossa TODO
-model <- create_si_model(grid, beta_mat, init, farms)
+model <- create_si_model(grid, beta_matrix, init, farms)
 
 tau <- get_tau(model, prevalence=0.5)
 get_trajectory(model, tmax=tau*1.5)
