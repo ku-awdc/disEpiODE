@@ -1,10 +1,20 @@
 Package: disEpiODE
-Title: What the Package Does (One Line, Title Case)
+Title: a deterministic SI model for theoretical landscape discretisation
+Date: 2024-09-04
 Version: 0.0.0.9000
 Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"),
-           comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
+    c(
+      person("Mossa", "Reimert", , "mossa@sund.ku.dk", role = c("aut", "cre")),
+      person("Matt", "Denwood", , "md@sund.ku.dk", role = c("aut")),
+      person("Maya", "Gussmann", , "makg@sund.ku.dk", role = c("aut"))
+    )    
+Description: 
+  The disEpiODE package provides utility functions to create and discretise 
+  landscapes using square, hexagonal and triangular grids, and then apply a 
+  deterministic SI disease model to the grid.  The package is mostly intended 
+  to support the publication "Choice of Landscape Discretisation Method Affects 
+  the Inferred Rate of Spread in Wildlife Disease Spread Models" by Reimert 
+  et al (in review), but may also be useful for other work.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)

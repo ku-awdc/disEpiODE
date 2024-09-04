@@ -8,8 +8,9 @@
 #' @return
 #' @rdname buffer_helpers
 #' @examples
-create_buffer_overlap <- function(grid, buffer) {
+create_farm_overlap <- function(grid, farms) {
 
+  buffer <- farms
   stopifnot(
     nrow(buffer) == 1,
     all(c("buffer_polygon") %in% names(buffer)),

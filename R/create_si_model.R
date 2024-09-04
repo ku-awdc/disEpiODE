@@ -9,7 +9,15 @@
 #' @export
 #'
 #' @examples
-create_si_model <- function(grid, beta_mat, y_init, target_overlap, middle_overlap, hmax = 0, verbose = TRUE) {
+create_si_model <- function(grid, beta_mat, init, farms, verbose = FALSE) {
+
+  source_overlap <- farms$source
+  target_overlap <- farms$target
+  middle_overlap <- farms$middle
+
+  yinit <- init
+
+  ## TODO: adapt with new code
 
   stopifnot(
     all(c("id", "geometry", "carry", "area") %in% names(grid)),

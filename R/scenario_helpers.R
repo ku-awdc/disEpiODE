@@ -7,15 +7,24 @@
 #' @param buffer_offset_percent
 #'
 #' @return
-#' @export
-#'
-#' @rdname scenario_helpers
 #' @examples
 #' world_scale <- 17
 #' get_buffer_source_target(landscape_width = world_scale,
 #'                          landscape_height = world_scale,
 #'                          buffer_radius = 5,
 #'                          buffer_offset_percent = 0.1)
+#'
+#' @export
+#' @rdname scenario_helpers
+create_farm_placement <- function(landscape){
+  ## TODO: function taking landscape and doing:
+  st <- get_buffer_source_target(1,1,0.15,0.2)
+  m <- get_middle_buffer(st, 0.15)
+
+}
+
+#' @export
+#' @rdname scenario_helpers
 get_buffer_source_target <-
   function(landscape_width, landscape_height,
            buffer_radius = 5, buffer_offset_percent = 0.1) {

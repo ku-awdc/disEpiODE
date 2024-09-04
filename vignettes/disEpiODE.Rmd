@@ -52,16 +52,16 @@ The first step is to create a landscape.  The spatial scale is arbitrary, so we 
 
 ```{r}
 area <- 1.0
-landscape <- create_landscape(area)$landscape
-ggplot(landscape) + geom_sf()
+landscape <- create_landscape(area)
+ggplot(landscape$landscape) + geom_sf()
 ```
 
 We should then create the grid - either hexagonal, triangular or square - with given cell size based on the desired number of cells.
 
 ```{r}
-n_cells <- 100
+## TODO: argument to rotate grid in degrees
 
-grid_hex <- create_grid(landscape, cellarea = area/n_cells, celltype = "hexagon")
+grid_hex <- create_grid(landscape, cellarea = 0.01, celltype = "hexagon")
 ggplot() +
   geom_sf(data=landscape) +
   geom_sf(data=grid_hex)
@@ -78,20 +78,46 @@ ggplot() +
   geom_sf(data=grid_tri)
 ```
 
-## Placing farms
+## Placing farms and setting initial infection
 
 
 
 We then need to add the farms and their area of influence.  
 
-## Selecting a kernel
+```{r}
+farms <- create_farm_placement(angle = 45)
+```
+
+
+```{r}
+overlap <- create_farm_overlap(grid, farms)
+```
+
+```{r}
+init <- create_initial_state(grid, overlap)
+```
+
+
+## Selecting a kernel and generate a transmission matrix
+
+
+```{r}
+create_transmission_matrix(grid, inv_sigma, sigma=1)
+## Note: kernel must be equal to 1 at distance = 0, i.e. diagonal ==1
+```
 
 
 
 ## Running a disease model
 
+```{r}
+model <- create_si_model(grid, beta_mat, init, farms)
+
+tau <- get_tau(model, prevalence=0.5)
+get_trajectory(model, tmax=tau*1.5)
+```
+
 
 
 ## Summarising results
-
 
