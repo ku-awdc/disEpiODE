@@ -1,7 +1,7 @@
 Package: disEpiODE
 Title: a deterministic SI model for theoretical landscape discretisation
 Date: 2024-09-04
-Version: 0.0.0.9000
+Version: 0.1.0-1
 Authors@R: 
     c(
       person("Mossa", "Reimert", , "mossa@sund.ku.dk", role = c("aut", "cre")),
