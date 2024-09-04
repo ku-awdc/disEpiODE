@@ -7,7 +7,7 @@
 #' @export
 #'
 #' @examples
-create_landscape <- function(scale) {
+create_landscape <- function(scale=1.0) {
 
   landscape <- st_polygon(
     x = list(

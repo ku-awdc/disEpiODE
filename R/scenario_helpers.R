@@ -1,6 +1,6 @@
-
 #' Title
 #'
+#' @param landscape an object created by \code{create_landscape}
 #' @param landscape_width
 #' @param landscape_height
 #' @param buffer_radius
@@ -8,18 +8,25 @@
 #'
 #' @return
 #' @examples
-#' world_scale <- 17
-#' get_buffer_source_target(landscape_width = world_scale,
-#'                          landscape_height = world_scale,
+#' landscape <- create_landscape()
+#' create_farm_placement(landscape,
 #'                          buffer_radius = 5,
 #'                          buffer_offset_percent = 0.1)
 #'
 #' @export
 #' @rdname scenario_helpers
-create_farm_placement <- function(landscape){
-  ## TODO: function taking landscape and doing:
-  st <- get_buffer_source_target(1,1,0.15,0.2)
-  m <- get_middle_buffer(st, 0.15)
+create_farm_placement <- function(landscape, buffer_radius = 0.15, buffer_offset_percent=0.2)
+  {
+
+  scale <- attr(landscape, "scale")
+  st <- get_buffer_source_target(scale[1],scale[2], buffer_radius, buffer_offset_percent)
+
+  bind_rows(
+    st,
+    get_middle_buffer(st, buffer_radius)
+  ) %>%
+    st_set_geometry("buffer_polygon") %>%
+    mutate(label = factor(label, levels=c("source","middle","target")))
 
 }
 

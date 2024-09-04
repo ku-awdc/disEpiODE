@@ -4,7 +4,7 @@
 \alias{create_landscape}
 \title{Title}
 \usage{
-create_landscape(scale)
+create_landscape(scale = 1)
 }
 \arguments{
 \item{scale}{Width and height}

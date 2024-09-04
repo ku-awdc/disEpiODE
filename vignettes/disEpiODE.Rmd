@@ -24,7 +24,8 @@ This vignette describes the basic steps required to re-create (and perhaps modif
 The latest stable version of the package can be installed from our drat repository as follows:
 
 ```{r eval=FALSE}
-install.packages("disEpiODE", repos=c("https://cran.rstudio.com/", "https://ku-awdc.github.io/drat/"))
+install.packages("disEpiODE",
+  repos=c("https://cran.rstudio.com/", "https://ku-awdc.github.io/drat/"))
 ```
 
 Alternatively, the development version can be installed directly from GitHub using the remotes package:
@@ -75,28 +76,29 @@ ggplot() +
 
 ## Placing farms and setting initial infection
 
-
-
-We then need to add the farms and their area of influence.  
+We then need to set the farms and their area of influence:
 
 ```{r}
-farms <- create_farm_placement(angle = 45)
+farms <- create_farm_placement(landscape)
+ggplot() +
+  geom_sf(data=landscape) +
+  geom_sf(aes(col=label), data=farms)
 ```
 
+We can then calculate the intersection/overlap between grid patches and these farms, and then the initial state of the grid based on the intersection/overlap with the source patch:
 
-```{r}
+```{r eval=FALSE}
+## Mossa TODO
 overlap <- create_farm_overlap(grid, farms)
-```
-
-```{r}
-init <- create_initial_state(grid, overlap)
+init <- create_initial_state(grid, overlap, start_prev=0.5)
 ```
 
 
-## Selecting a kernel and generate a transmission matrix
+## Select a kernel and generate a transmission matrix
 
 
-```{r}
+```{r eval=FALSE}
+## Matt TODO
 create_transmission_matrix(grid, inv_sigma, sigma=1)
 ## Note: kernel must be equal to 1 at distance = 0, i.e. diagonal ==1
 ```
@@ -105,7 +107,8 @@ create_transmission_matrix(grid, inv_sigma, sigma=1)
 
 ## Running a disease model
 
-```{r}
+```{r eval=FALSE}
+## Mossa TODO
 model <- create_si_model(grid, beta_mat, init, farms)
 
 tau <- get_tau(model, prevalence=0.5)
@@ -115,4 +118,8 @@ get_trajectory(model, tmax=tau*1.5)
 
 
 ## Summarising results
+
+```{r}
+## Matt TODO (once model functions are in place)
+```
 

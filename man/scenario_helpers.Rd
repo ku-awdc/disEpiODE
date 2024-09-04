@@ -6,7 +6,11 @@
 \alias{get_middle_buffer}
 \title{Title}
 \usage{
-create_farm_placement(landscape)
+create_farm_placement(
+  landscape,
+  buffer_radius = 0.15,
+  buffer_offset_percent = 0.2
+)
 
 get_buffer_source_target(
   landscape_width,
@@ -18,15 +22,16 @@ get_buffer_source_target(
 get_middle_buffer(source_target, buffer_radius)
 }
 \arguments{
+\item{landscape}{an object created by \code{create_landscape}}
+
 \item{buffer_offset_percent}{}
 }
 \description{
 Title
 }
 \examples{
-world_scale <- 17
-get_buffer_source_target(landscape_width = world_scale,
-                         landscape_height = world_scale,
+landscape <- create_landscape()
+create_farm_placement(landscape,
                          buffer_radius = 5,
                          buffer_offset_percent = 0.1)
 
