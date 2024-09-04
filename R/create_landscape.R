@@ -20,13 +20,8 @@ create_landscape <- function(scale) {
 
   landscape_scales <- get_landscape_scale(landscape)
 
-  structure(
-    list(
-      landscape = landscape,
-      width = landscape_scales[1],
-      height = landscape_scales[2]
-    )
-  )
+  attr(landscape, "scale") <- landscape_scales
+  return(landscape)
 }
 
 

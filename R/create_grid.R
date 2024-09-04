@@ -28,7 +28,9 @@ create_grid <- function(landscape,
                         center_as_centroid = FALSE,
                         celltype = c("square", "hexagon", "hexagon_rot", "triangle",
                                      "triangulate_constrained"),
-                        offset = c("corner", "middle", "bottom", "left")) {
+                        offset = c("corner", "middle", "bottom", "left"),
+                        rotate = 0.0)
+  {
   #TODO: Finish "middle" which means all the borders should be the same type
   #
   #TODO: introduce center, which means that the center point of the landscape
@@ -76,6 +78,15 @@ create_grid <- function(landscape,
   #            c(0, cellsize/2)
   #          }
   #   )
+
+  ## Rotate the landscape, if necessary:
+  landscape_original <- landscape
+  if(rotate!=0){
+    stopifnot(length(rotate)==1L, !is.na(rotate), rotate >= -360, rotate <= 360)
+    ## Convert to radians:
+    rotate <- rotate * pi/180
+    landscape <- landscape * matrix(c(cos(rotate), -sin(rotate), sin(rotate), cos(rotate)), 2)
+  }
 
   # FIXME: `offset` is missing here! it is not enough just to uncomment the above
   landscape_bbox <- st_bbox(landscape)
@@ -297,6 +308,14 @@ create_grid <- function(landscape,
     # note: for hexagon, sometimes we have LINESTRING here..
     dplyr::filter(st_area(geometry) > 0) %>%
     identity()
+
+  ## Rotate the grid back, if necessary:
+  if(rotate!=0){
+    grid$geometry <- grid$geometry * matrix(c(cos(-rotate), -sin(-rotate), sin(-rotate), cos(-rotate)), 2)
+    grid <- grid %>%
+      filter(st_intersects(geometry, landscape_original, sparse=FALSE)[,1L]) %>%
+      mutate(geometry = st_intersection(geometry, landscape_original))
+  }
 
   matched_area <- isTRUE(all.equal(
     st_area(st_union(grid)),

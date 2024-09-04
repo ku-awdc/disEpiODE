@@ -4,12 +4,18 @@
 \name{disEpiODE-package}
 \alias{disEpiODE}
 \alias{disEpiODE-package}
-\title{disEpiODE: What the Package Does (One Line, Title Case)}
+\title{disEpiODE: a deterministic SI model for theoretical landscape discretisation}
 \description{
-What the package does (one paragraph).
+The disEpiODE package provides utility functions to create and discretise landscapes using square, hexagonal and triangular grids, and then apply a deterministic SI disease model to the grid. The package is mostly intended to support the publication "Choice of Landscape Discretisation Method Affects the Inferred Rate of Spread in Wildlife Disease Spread Models" by Reimert et al (in review), but may also be useful for other work.
 }
 \author{
-\strong{Maintainer}: First Last \email{first.last@example.com} (\href{https://orcid.org/YOUR-ORCID-ID}{ORCID})
+\strong{Maintainer}: Mossa Reimert \email{mossa@sund.ku.dk}
+
+Authors:
+\itemize{
+  \item Matt Denwood \email{md@sund.ku.dk}
+  \item Maya Gussmann \email{makg@sund.ku.dk}
+}
 
 }
 \keyword{internal}

@@ -51,28 +51,23 @@ theme_set(theme_light())
 The first step is to create a landscape.  The spatial scale is arbitrary, so we use a unit square:
 
 ```{r}
-area <- 1.0
-landscape <- create_landscape(area)
-ggplot(landscape$landscape) + geom_sf()
+landscape <- create_landscape(scale=1.0)
+ggplot(landscape) + geom_sf()
 ```
 
-We should then create the grid - either hexagonal, triangular or square - with given cell size based on the desired number of cells.
+We should then create the grid - either hexagonal, triangular or square - with given cell size based on the desired number of cells.  We can also specify a rotation angle (in degrees):
 
 ```{r}
-## TODO: argument to rotate grid in degrees
-
-grid_hex <- create_grid(landscape, cellarea = 0.01, celltype = "hexagon")
+grid_hex <- create_grid(landscape, cellarea = 0.01, celltype = "hexagon", rotate = 45)
 ggplot() +
   geom_sf(data=landscape) +
   geom_sf(data=grid_hex)
 ```
 
-This can be compared to e.g. a triangular grid with 500 cells:
+This can be compared to e.g. a triangular grid with area of 0.002 and a rotation of 15 degrees:
 
 ```{r}
-n_cells <- 500
-
-grid_tri <- create_grid(landscape, cellarea = area/n_cells, celltype = "triangle")
+grid_tri <- create_grid(landscape, cellarea = 0.002, celltype = "triangle", rotate=15)
 ggplot() +
   geom_sf(data=landscape) +
   geom_sf(data=grid_tri)
