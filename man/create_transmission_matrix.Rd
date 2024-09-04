@@ -5,7 +5,7 @@
 \alias{create_kernel}
 \title{Title}
 \usage{
-create_transmission_matrix(grid, kernel)
+create_transmission_matrix(grid, kernel, beta_baseline = 0.05)
 
 create_kernel(type = c("exponential", "half-normal", "inverse"), sigma = 1)
 }
@@ -13,6 +13,8 @@ create_kernel(type = c("exponential", "half-normal", "inverse"), sigma = 1)
 \item{grid}{qn object created by \code{create_grid}}
 
 \item{kernel}{a function (such as that created by \code{create_kernel}) taking a single vectorised parameter (distance) and returning a non-negative numeric vector of equal length. An input distance of zero must give an output of one.}
+
+\item{beta_baseline}{the desired within-patch transmission rate}
 
 \item{type}{the kernel type: one of exponential, half-normal or inverse}
 

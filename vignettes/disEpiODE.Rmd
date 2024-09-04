@@ -16,7 +16,7 @@ knitr::opts_chunk$set(
 
 The disEpiODE package provides utility functions to create and discretise landscapes using square, hexagonal and triangular grids, and then apply a deterministic SI disease model to the grid.  The package is mostly intended to support the publication "Choice of Landscape Discretisation Method Affects the Inferred Rate of Spread in Wildlife Disease Spread Models" by Reimert et al (in review), but may also be useful for other work.
 
-This vignette describes the basic steps required to re-create (and perhaps modify) the analyses presented in the publication.
+This vignette describes the basic steps required to re-create (and perhaps modify) the analyses presented in the publication. The code required to install the package and access this vignette from within R is also available (in a format easier to copy/paste) from the GitHub repository at:  https://github.com/ku-awdc/disEpiODE
 
 
 ## Package installation
@@ -37,10 +37,17 @@ remotes::install_github("https://github.com/ku-awdc/disEpiODE")
 
 Both of these methods should also install the dependent packages, including deSolve (although the remotes package may need to . Binary versions of the package are not provided because the package does not contain compiled code, so should be installable from source on all platforms.
 
-Once the package is installed, it can be loaded as usual.  We will also be using the sf and ggplot packages to visualise the process:
+Once the package is installed, it can be loaded as usual and this vignette can be accessed directly:
 
 ```{r}
 library("disEpiODE")
+# vignette("disEpiODE", package="disEpiODE")
+```
+
+
+We will also be using the sf and ggplot packages within this vignette:
+
+```{r}
 library("sf")
 library("ggplot2")
 theme_set(theme_light())
