@@ -126,10 +126,10 @@ kernel <- create_kernel("inverse", sigma=100)
 kernel(seq(0,0.5,by=0.1))
 ```
 
-Once the grid and kernel are available, a transmission matrix can be generated. This will always be a symmetric matrix with dimension equal to the number of patches, and a diagnonal of one.
+Once the grid and kernel are available, a transmission matrix can be generated with the desired within-patch transmission rate (beta_baseline). This will always be a symmetric matrix with dimension equal to the number of patches, and a diagnonal equal to beta_baseline.
 
 ```{r}
-beta_matrix <- create_transmission_matrix(grid, kernel)
+beta_matrix <- create_transmission_matrix(grid, kernel, beta_baseline=0.05)
 nrow(grid)
 dim(beta_matrix)
 beta_matrix[1:5,1:5]

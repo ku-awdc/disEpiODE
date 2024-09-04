@@ -3,13 +3,16 @@
 #'
 #' @param grid qn object created by \code{create_grid}
 #' @param kernel a function (such as that created by \code{create_kernel}) taking a single vectorised parameter (distance) and returning a non-negative numeric vector of equal length. An input distance of zero must give an output of one.
+#' @param beta_baseline the desired within-patch transmission rate
 #' @param type the kernel type: one of exponential, half-normal or inverse
 #' @param sigma the scale parameter for the kernel
 #'
 
 #' @export
 #' @rdname create_transmission_matrix
-create_transmission_matrix <- function(grid, kernel){
+create_transmission_matrix <- function(grid, kernel, beta_baseline=0.05){
+
+  stopifnot(is.numeric(beta_baseline), beta_baseline >= 0.0, length(beta_baseline)==1L)
 
   ## Check kernel:
   stopifnot(is.function(kernel), length(formalArgs(kernel))==1L)
@@ -18,7 +21,10 @@ create_transmission_matrix <- function(grid, kernel){
 
   ## Calculate distances based on centroids:
   distances <- grid$geometry %>% st_centroid() %>% st_distance()
-  rv <- kernel(as.numeric(distances))
+  rv <- beta_baseline * kernel(as.numeric(distances))
+
+  stopifnot(is.numeric(rv), is.finite(rv), length(rv)==prod(dim(distances)))
+
   dim(rv) <- dim(distances)
   return(rv)
 
