@@ -116,7 +116,6 @@ ggplot() +
 We can then calculate the intersection/overlap between grid patches and these farms, and then the initial state of the grid based on the intersection/overlap with the source patch:
 
 ```{r eval=FALSE}
-## Mossa TODO
 overlap <- create_farm_overlap(grid, farms)
 init <- create_initial_state(grid, overlap, start_prev=0.5)
 ```

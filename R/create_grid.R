@@ -368,6 +368,8 @@ create_grid <- function(landscape,
       ))
   )
 
+  grid <- grid %>% mutate(ID = row_number())
+
   grid
 }
 

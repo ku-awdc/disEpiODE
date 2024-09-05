@@ -1,4 +1,5 @@
-if (interactive()) {
+# Note from Matt; please can we delete this??
+if (FALSE && interactive()) {
   require(conflicted)
   require(glue)
   require(magrittr)
