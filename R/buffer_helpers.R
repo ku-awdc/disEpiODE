@@ -137,7 +137,7 @@ create_farm_overlap <- function(grid, farms) {
 
 
 
-  ### OLDER CODE:
+  ### EVEN OLDER CODE:
   buffer <- farms
   stopifnot(
     nrow(buffer) == 1,

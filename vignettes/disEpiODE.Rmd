@@ -115,7 +115,7 @@ ggplot() +
 
 We can then calculate the intersection/overlap between grid patches and these farms, and then the initial state of the grid based on the intersection/overlap with the source patch:
 
-```{r eval=FALSE}
+```{r}
 overlap <- create_farm_overlap(grid, farms)
 init <- create_initial_state(grid, overlap, start_prev=0.5)
 ```
@@ -146,7 +146,7 @@ beta_matrix[1:5,1:5]
 
 ```{r eval=FALSE}
 ## Mossa TODO
-model <- create_si_model(grid, beta_matrix, init, farms)
+model <- create_si_model(grid, beta_matrix, init, overlap)
 
 tau <- get_tau(model, prevalence=0.5)
 get_trajectory(model, tmax=tau*1.5)
