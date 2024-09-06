@@ -144,12 +144,26 @@ beta_matrix[1:5,1:5]
 
 ## Running a disease model
 
-```{r eval=FALSE}
-## Mossa TODO
-model <- create_si_model(grid, beta_matrix, init, overlap)
+```{r}
+taufun <- create_si_model(grid, beta_matrix, init, overlap, root="target")
+(tau <- taufun(prevalence=0.5))
+```
 
-tau <- get_tau(model, prevalence=0.5)
-get_trajectory(model, tmax=tau*1.5)
+
+```{r}
+trajfun <- create_si_model(grid, beta_matrix, init, overlap, root="none")
+results <- trajfun(time=seq(0, round(tau$Time[1]*1.5), by=1))
+ggplot(results, aes(x=Time, y=Prevalence, col=Area)) + 
+  geom_line() + 
+  geom_hline(yintercept=0.5, lty="dashed") +
+  geom_vline(xintercept=tau$Time[1], lty="dotted")
+```
+
+
+## Iterating over grid sizes
+
+```{r}
+## Matt TODO
 ```
 
 
@@ -157,6 +171,7 @@ get_trajectory(model, tmax=tau*1.5)
 ## Summarising results
 
 ```{r}
-## Matt TODO (once model functions are in place)
+## Matt TODO
+
 ```
 

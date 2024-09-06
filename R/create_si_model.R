@@ -9,27 +9,117 @@
 #' @export
 #'
 #' @examples
-create_si_model <- function(grid, beta_matrix, init, overlap, verbose = FALSE) {
+create_si_model <- function(grid, beta_matrix, init, overlap, root=c("target","middle","none")) {
+
+  root <- match.arg(root)
 
   source_overlap <- overlap %>% filter(label=="source")
   target_overlap <- overlap %>% filter(label=="target")
   middle_overlap <- overlap %>% filter(label=="middle")
 
-  yinit <- init
+  y_init <- init %>% select(S, I) %>% as.matrix() %>% as.numeric()
+  beta_mat <- beta_matrix
 
+  ode_parameters <- list(
+    verbose = FALSE,
+    y = y_init,
+    func = disEpiODE:::model_func,
+    ynames = FALSE
+  )
 
-  result <- list()
+  parameter_list <- list(
+    N = nrow(grid),
+    carry = grid$area,
+    area = grid$area,
+    source_overlap = source_overlap %>% select(id_overlap=ID, weight),
+    middle_overlap = middle_overlap %>% select(id_overlap=ID, weight),
+    target_overlap = target_overlap %>% select(id_overlap=ID, weight),
+    beta_mat = beta_mat
+  )
 
-  for (beta_mat_name in beta_mat_list) {
-    beta_mat <- all_beta_mat[[beta_mat_name]]
-    if (remove_within_patch_transmission) {
-      diag(beta_mat) <- 0
+  if(root == "target"){
+    ff <- function(prevalence=0.5, output=c("tibble","deSolve")) {
+      stopifnot(is.numeric(prevalence), length(prevalence)==1, is.finite(prevalence), prevalence>0, prevalence<1)
+      output <- match.arg(output)
+      parameter_list$prevalence_threshold <- prevalence
+      rv <- rlang::exec(deSolve::ode,
+                        !!!ode_parameters,
+                        hmax = NULL,
+                        parms = parameter_list,
+                        rootfunc = disEpiODE:::find_target_prevalence,
+                        times = c(0,Inf))
+      if(output=="tibble"){
+        rv %>%
+          as.data.frame() %>%
+          as_tibble() %>%
+          select(Time=time, starts_with("prevalence")) %>%
+          rename_with(\(x) gsub("prevalence_","",x)) %>%
+          filter(Time > 0) %>%
+          pivot_longer("source":"population", names_to="Area", values_to="Prevalence") ->
+          rv
+      }
+      rv
     }
+  }else if(root == "middle"){
+    ff <- function(prevalence=0.5, output=c("tibble","deSolve")) {
+      stopifnot(is.numeric(prevalence), length(prevalence)==1, is.finite(prevalence), prevalence>0, prevalence<1)
+      output <- match.arg(output)
+      parameter_list$prevalence_threshold <- prevalence
+      rv <- rlang::exec(deSolve::ode,
+                        !!!ode_parameters,
+                        hmax = NULL,
+                        parms = parameter_list,
+                        rootfunc = disEpiODE:::find_middle_prevalence,
+                        times = c(0,Inf))
+      if(output=="tibble"){
+        rv %>%
+          as.data.frame() %>%
+          as_tibble() %>%
+          select(Time=time, starts_with("prevalence")) %>%
+          rename_with(\(x) gsub("prevalence_","",x)) %>%
+          filter(Time > 0) %>%
+          pivot_longer("source":"population", names_to="Area", values_to="Prevalence") ->
+          rv
+      }
+      rv
+    }
+  }else if(root == "none"){
+    ff <- function(times, output=c("tibble","deSolve")) {
+      stopifnot(is.numeric(times))
+      output <- match.arg(output)
+      rv <- rlang::exec(deSolve::ode,
+                        !!!ode_parameters,
+                        hmax = NULL,
+                        parms = parameter_list,
+                        times = times)
+      if(output=="tibble"){
+        rv %>%
+          as.data.frame() %>%
+          as_tibble() %>%
+          select(Time=time, starts_with("prevalence")) %>%
+          rename_with(\(x) gsub("prevalence_","",x)) %>%
+          pivot_longer("source":"population", names_to="Area", values_to="Prevalence") ->
+          rv
+      }
+      rv
+    }
+  }else{
+    stop("Unmatched root")
+  }
 
+  return(ff)
+
+
+  current_ode_model <- build_model_function()
+  mm <- current_ode_model(c(0,100000))
+
+  class(mm)
+
+  {
     tau_model_output <-
       rlang::exec(deSolve::ode,
                   !!!ode_parameters,
-                  hmax = na_as_null(hmax_list[[beta_mat_name]]),
+                  hmax = NULL, #na_as_null(hmax_list[[beta_mat_name]]),
                   parms = parameter_list %>% append(list(
                     beta_mat = beta_mat
                   )),
@@ -37,12 +127,11 @@ create_si_model <- function(grid, beta_matrix, init, overlap, verbose = FALSE) {
                   rootfunc = disEpiODE:::find_middle_prevalence,
                   times = c(0, Inf)
       )
+
     output <- list()
     output$rstate <- deSolve::diagnostics(tau_model_output)$rstate
     # TODO: check if tau exists
     output$tau <- tau_model_output[2, 1]
-    result[[glue("output_{beta_mat_name}_tau")]] <- output
-    result[[glue("output_{beta_mat_name}_tau_state")]] <- tau_model_output
 
     # save a model you can run with a given end time T
     build_model_function <- function(ode_parameters, hmax, parameter_list, beta_mat) {
@@ -208,11 +297,14 @@ find_population_prevalence <- function(times, y, parameters) {
   N <- parameters$N
   I <- y[(N + 1):(2 * N)]
 
+  prevalence_threshold <- parameters$prevalence_threshold
+  if(is.null(prevalence_threshold)) prevalence_threshold <- 0.5
+
   carry <- parameters$carry
   # could also be divided by sum(y)
   prevalence_population <- sum(I) / sum(carry)
 
-  c(prevalence_population - 0.5,
+  c(prevalence_population - prevalence_threshold,
     terminate_extinction(times, y, parameters))
 }
 
@@ -224,6 +316,9 @@ find_target_prevalence <- function(times, y, parameters) {
   I <- y[(N + 1):(2 * N)]
 
   carry <- parameters$carry
+
+  prevalence_threshold <- parameters$prevalence_threshold
+  if(is.null(prevalence_threshold)) prevalence_threshold <- 0.5
 
   # prevalence_target <- mean(
   #   I[target_overlap$id_overlap] * target_overlap$weight /
@@ -242,7 +337,7 @@ find_target_prevalence <- function(times, y, parameters) {
   # APPROACH:
   # prevalence_target <- sum(I[target_overlap$id_overlap] * target_overlap$weight) / sum(target_overlap$weight)
 
-  c(prevalence_target - 0.5,
+  c(prevalence_target - prevalence_threshold,
     terminate_extinction(times, y, parameters))
 }
 
@@ -253,6 +348,9 @@ find_target_prevalence <- function(times, y, parameters) {
 find_middle_prevalence <- function(times, y, parameters) {
   N <- parameters$N
 
+  prevalence_threshold <- parameters$prevalence_threshold
+  if(is.null(prevalence_threshold)) prevalence_threshold <- 0.5
+
   # NOTE: changing the stopping criteria from TARGET to MIDDLE
   middle_overlap <- parameters$middle_overlap
   I <- y[(N + 1):(2 * N)]
@@ -261,6 +359,6 @@ find_middle_prevalence <- function(times, y, parameters) {
   prevalence_target <- sum((I[middle_overlap$id_overlap] /
                               carry[middle_overlap$id_overlap]) * middle_overlap$weight)
 
-  c(prevalence_target - 0.5,
+  c(prevalence_target - prevalence_threshold,
     terminate_extinction(times, y, parameters))
 }

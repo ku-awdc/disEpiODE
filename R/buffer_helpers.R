@@ -13,17 +13,20 @@ create_farm_overlap <- function(grid, farms) {
   farms %>%
     rowwise() %>%
     group_split() %>%
-    map_df(\(buffer){
+    lapply(\(buffer){
       grid %>%
         filter(st_intersects(geometry, buffer$buffer_polygon, sparse=FALSE)[,1L]) %>%
         mutate(geometry = st_intersection(geometry, buffer$buffer_polygon)) %>%
-        mutate(area = st_area(geometry), weight = area/buffer$buffer_area) %>%
+        mutate(area_overlap = st_area(geometry), weight = area_overlap/buffer$buffer_area) %>%
         bind_cols(
           buffer %>% select(label)
         ) %>%
-        select(label, ID, area, weight, geometry)
-    }) ->
+        select(label, ID, area, area_overlap, weight, geometry)
+    }) %>%
+    bind_rows() ->
     overlap
+
+  stopifnot(all.equal(sum(overlap$area_overlap), sum(farms$buffer_area)))
 
   return(overlap)
 
@@ -176,25 +179,28 @@ create_farm_overlap <- function(grid, farms) {
 #' @export
 create_initial_state <- function(grid, overlap, start_prev=0.5){
 
+  overlap %>%
+    as_tibble() %>%
+    filter(label=="source") ->
+    overlap_source
+
   left_join(
     grid %>% as_tibble(),
-    overlap %>%
-      as_tibble() %>%
-      filter(label=="source") %>%
-      select(ID, weight),
+    overlap_source %>% select(ID, area_overlap),
     by="ID"
   ) %>%
-    replace_na(list(weight=0.0)) %>%
-    mutate(I = weight, S=area-I) ->
+    replace_na(list(area_overlap=0.0)) %>%
+    mutate(I=area_overlap*start_prev, S=area-I) ->
     init_grid
 
-  stopifnot(all.equal(sum(init_grid$weight), 1.0), nrow(init_grid)==nrow(grid), all.equal(sum(init_grid$S)+sum(init_grid$I), 1.0))
+  stopifnot(all.equal(sum(init_grid$I), sum(overlap_source$area_overlap)*start_prev))
+  stopifnot(nrow(init_grid)==nrow(grid), all.equal(sum(init_grid$S)+sum(init_grid$I), 1.0))
 
-    init_grid %>%
-      select(ID, S, I) ->
-      rv
+  init_grid %>%
+    select(ID, S, I) ->
+    rv
 
-    return(rv)
+  return(rv)
 }
 
 

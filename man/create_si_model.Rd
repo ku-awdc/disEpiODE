@@ -4,7 +4,13 @@
 \alias{create_si_model}
 \title{Deterministic SI model with pair-wise infectious interactions}
 \usage{
-create_si_model(grid, beta_mat, init, farms, verbose = FALSE)
+create_si_model(
+  grid,
+  beta_matrix,
+  init,
+  overlap,
+  root = c("target", "middle", "none")
+)
 }
 \arguments{
 \item{grid}{Represents a grid of a landscape}

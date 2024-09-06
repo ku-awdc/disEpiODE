@@ -2,21 +2,25 @@
 % Please edit documentation in R/buffer_helpers.R
 \name{create_farm_overlap}
 \alias{create_farm_overlap}
+\alias{create_initial_state}
 \alias{create_buffer_overlap_map}
 \title{Title}
 \usage{
 create_farm_overlap(grid, farms)
 
+create_initial_state(grid, overlap, start_prev = 0.5)
+
 create_buffer_overlap_map(buffer_overlap)
-}
-\arguments{
-\item{buffer_overlap}{}
 }
 \description{
 Title
-
-Title
 }
 \examples{
+source -> lower left
+middle -> center of landscape
+target -> upper right
+
+terminate when middle achieves 50\% prevalence
+remove mass from susceptible
 Define source- and target-buffer indices and weights
 }
