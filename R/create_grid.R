@@ -26,7 +26,7 @@ create_grid <- function(landscape,
                         n = NULL,
                         middle = FALSE,
                         center_as_centroid = FALSE,
-                        celltype = c("square", "hexagon", "hexagon_rot", "triangle",
+                        grid_type = c("square", "hexagon", "hexagon_rot", "triangle",
                                      "triangulate_constrained"),
                         offset = c("corner", "middle", "bottom", "left"),
                         rotate = 0.0)
@@ -36,7 +36,10 @@ create_grid <- function(landscape,
   #TODO: introduce center, which means that the center point of the landscape
   # is contained in a cell, and it is that cell's centroid.
 
+  grid_type <- match.arg(grid_type, several.ok = FALSE)
+  celltype <- grid_type
   cellarea <- patch_area
+
   stopifnot(
     "not implemented" = missing(offset),
     "either provide `n` or `cellarea`, not both" =
@@ -60,8 +63,6 @@ create_grid <- function(landscape,
     # ???
     # Warning: if middle is specified, then don't do anything?
   }
-
-  celltype <- match.arg(celltype, several.ok = FALSE)
 
   # offset <- match.arg(offset, choices = offset, several.ok = FALSE)
   # offset <- st_bbox(landscape)[c("xmin", "ymin")] -
@@ -324,6 +325,8 @@ create_grid <- function(landscape,
   ))
 
   if (!matched_area) {
+    stop("Grid creation failed for parmeters: ", grid_type, ", ", patch_area, ", ", rotate*180/pi, " degree rotation")
+
     stop("this shouldn't be necessary anymore")
     # fix an issue with `st_make_grid` where the boundary gets an extra
     # set of grids sometimes..

@@ -6,11 +6,12 @@
 \usage{
 create_grid(
   landscape,
-  cellarea = NULL,
+  patch_area = NULL,
   n = NULL,
   middle = FALSE,
   center_as_centroid = FALSE,
-  celltype = c("square", "hexagon", "hexagon_rot", "triangle", "triangulate_constrained"),
+  grid_type = c("square", "hexagon", "hexagon_rot", "triangle",
+    "triangulate_constrained"),
   offset = c("corner", "middle", "bottom", "left"),
   rotate = 0
 )
@@ -18,17 +19,17 @@ create_grid(
 \arguments{
 \item{landscape}{Landscape as \code{sf} object}
 
-\item{cellarea}{Positive number that is less than or equal to \code{st_area(landscape)}.}
-
 \item{n}{Integer specifying how many cells to place horizontally and vertically.}
 
 \item{middle}{Offset the grid so equal sized cells are in the middle.}
 
 \item{center_as_centroid}{Ensure that there is a cell, whose centroid is the center of \code{landscape}.}
 
-\item{celltype}{Cell shapes \code{c("square", "hexagon", "hexagon_rot", "triangle")}}
-
 \item{offset}{Aligned with initial cell placed at lower left corner}
+
+\item{cellarea}{Positive number that is less than or equal to \code{st_area(landscape)}.}
+
+\item{celltype}{Cell shapes \code{c("square", "hexagon", "hexagon_rot", "triangle")}}
 }
 \description{
 Title
