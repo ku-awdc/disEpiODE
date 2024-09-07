@@ -55,7 +55,8 @@ create_si_model <- function(grid, beta_matrix, init, overlap, root=c("target","m
           select(Time=time, starts_with("prevalence")) %>%
           rename_with(\(x) gsub("prevalence_","",x)) %>%
           filter(Time > 0) %>%
-          pivot_longer("source":"population", names_to="Area", values_to="Prevalence") ->
+          pivot_longer("source":"population", names_to="Area", values_to="Prevalence") %>%
+          mutate(Area = factor(Area, levels=c("source","target","middle","population"))) ->
           rv
       }
       rv
@@ -78,7 +79,8 @@ create_si_model <- function(grid, beta_matrix, init, overlap, root=c("target","m
           select(Time=time, starts_with("prevalence")) %>%
           rename_with(\(x) gsub("prevalence_","",x)) %>%
           filter(Time > 0) %>%
-          pivot_longer("source":"population", names_to="Area", values_to="Prevalence") ->
+          pivot_longer("source":"population", names_to="Area", values_to="Prevalence") %>%
+          mutate(Area = factor(Area, levels=c("source","target","middle","population"))) ->
           rv
       }
       rv
@@ -98,7 +100,8 @@ create_si_model <- function(grid, beta_matrix, init, overlap, root=c("target","m
           as_tibble() %>%
           select(Time=time, starts_with("prevalence")) %>%
           rename_with(\(x) gsub("prevalence_","",x)) %>%
-          pivot_longer("source":"population", names_to="Area", values_to="Prevalence") ->
+          pivot_longer("source":"population", names_to="Area", values_to="Prevalence") %>%
+          mutate(Area = factor(Area, levels=c("source","target","middle","population"))) ->
           rv
       }
       rv

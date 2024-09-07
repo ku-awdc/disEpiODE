@@ -144,26 +144,73 @@ beta_matrix[1:5,1:5]
 
 ## Running a disease model
 
+Now that all of the components are available we can create the model itself. The create_si_model function takes the required components as input and returns a function that can be used to make inference from the model. Two return function types are available:
+
+1. A function to find tau for any given prevalence threshold value:
+
 ```{r}
 taufun <- create_si_model(grid, beta_matrix, init, overlap, root="target")
 (tau <- taufun(prevalence=0.5))
 ```
 
+2. A function to return the full prevalence trajectory for an input vector of time points:
 
 ```{r}
 trajfun <- create_si_model(grid, beta_matrix, init, overlap, root="none")
-results <- trajfun(time=seq(0, round(tau$Time[1]*1.5), by=1))
+results <- trajfun(time=seq(0, round(tau$Time[1]*2), by=1))
 ggplot(results, aes(x=Time, y=Prevalence, col=Area)) + 
   geom_line() + 
   geom_hline(yintercept=0.5, lty="dashed") +
   geom_vline(xintercept=tau$Time[1], lty="dotted")
 ```
 
+By default both of these functions return data frames, but the user can also request the underlying deSolve object via the output argument of the returned function.
 
 ## Iterating over grid sizes
 
+In order to recreate the results from the article it is necessary to iterate over different patch sizes. The following function is one way of doing this:
+
 ```{r}
+library("dplyr")
+library("tibble")
+
+landscape <- create_landscape(scale=1.0)
+kernel <- create_kernel("half-normal", sigma=0.08456)
+kernel <- create_kernel("inverse", sigma=100)
+
+tibble(PatchSize = 10^seq(0,-3,by=-0.01)) %>%
+  rowwise() %>%
+  group_split() %>%
+  lapply(function(x){
+    
+    grid <- create_grid(landscape, cellarea = x$PatchSize, celltype="hexagon", rotate=0)
+    farms <- create_farm_placement(landscape)
+    overlap <- create_farm_overlap(grid, farms)
+    init <- create_initial_state(grid, overlap, start_prev=0.5)
+    beta_matrix <- create_transmission_matrix(grid, kernel, beta_baseline=0.05)
+    taufun <- create_si_model(grid, beta_matrix, init, overlap, root="target")
+    tau <- taufun(prevalence=0.5)
+    
+    bind_cols(x, tau)
+  }) %>%
+  bind_rows() ->
+  results
+  
+ggplot(results, aes(x=PatchSize, y=Prevalence, col=Area)) +
+  geom_line() +
+  scale_x_log10_rev()
+
+ggplot(results, aes(x=PatchSize, y=Time, col=Area)) +
+  geom_line() +
+  scale_x_log10_rev()
+
 ## Matt TODO
+
+  sigma_inv = 100
+  sigma_exp = 12.6161672832572
+  sigma_half_normal = 0.08456
+
+
 ```
 
 

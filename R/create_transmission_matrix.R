@@ -51,7 +51,7 @@ create_kernel <- function(type=c("exponential", "half-normal", "inverse"), sigma
   if(type=="exponential"){
     return(exp_sigma)
   }else if(type=="half-normal"){
-    return(half_normal_sigma())
+    return(half_normal_sigma)
   }else if(type=="inverse"){
     return(inv_sigma)
   }else{
