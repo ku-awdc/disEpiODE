@@ -181,7 +181,7 @@ create_initial_state <- function(grid, overlap, start_prev=0.5){
 
   overlap %>%
     as_tibble() %>%
-    filter(label=="source") ->
+    filter(label=="Farm A") ->
     overlap_source
 
   left_join(

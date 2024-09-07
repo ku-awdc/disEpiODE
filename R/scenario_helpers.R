@@ -26,7 +26,7 @@ create_farm_placement <- function(landscape, buffer_radius = 0.15, buffer_offset
     get_middle_buffer(st, buffer_radius)
   ) %>%
     st_set_geometry("buffer_polygon") %>%
-    mutate(label = factor(label, levels=c("source","middle","target")))
+    mutate(label = factor(label, levels=c("source","middle","target"), labels=c("Farm A", "Farm B", "Farm C")))
 
 }
 

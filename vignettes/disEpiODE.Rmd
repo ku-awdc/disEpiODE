@@ -63,10 +63,10 @@ landscape <- create_landscape(scale=1.0)
 ggplot(landscape) + geom_sf()
 ```
 
-We should then create the grid - either hexagonal, triangular or square - with given cell size based on the desired number of cells.  We can also specify a rotation angle (in degrees):
+We should then create the grid - either hexagonal, triangular or square - with given patch area and (optionally) a rotation (in degrees) to be applied to the patches:
 
 ```{r}
-grid <- create_grid(landscape, cellarea = 0.01, celltype = "hexagon", rotate = 45)
+grid <- create_grid(landscape, patch_area = 0.001, celltype = "hexagon", rotate=0)
 ggplot() +
   geom_sf(data=landscape) +
   geom_sf(data=grid)
@@ -75,7 +75,7 @@ ggplot() +
 This can be compared to e.g. a simple square grid:
 
 ```{r}
-grid_sq <- create_grid(landscape, cellarea = 0.01, celltype = "square")
+grid_sq <- create_grid(landscape, patch_area = 0.01, celltype = "square")
 ggplot() +
   geom_sf(data=landscape) +
   geom_sf(data=grid_sq)
@@ -84,7 +84,7 @@ ggplot() +
 Or a more complex triangular grid with area of 0.002 and a rotation of 15 degrees:
 
 ```{r}
-grid_tri <- create_grid(landscape, cellarea = 0.002, celltype = "triangle", rotate=15)
+grid_tri <- create_grid(landscape, patch_area = 0.002, celltype = "triangle", rotate=15)
 ggplot() +
   geom_sf(data=landscape) +
   geom_sf(data=grid_tri)
@@ -96,7 +96,7 @@ ggplot() +
 Note that the number of patches can be inspected from the number of rows in the grid. This may be more than implied by the input area due to the presence of partial patches intersecting the bounday of the landscape:
 
 ```{r}
-nrow(grid); 1/0.01
+nrow(grid); 1/0.001
 nrow(grid_sq); 1/0.01
 nrow(grid_tri); 1/0.002
 ```
@@ -128,7 +128,7 @@ We also need to define a transmission kernel. This can be any user-specified fun
 A helper function to generate an inverse/half-normal/expontential kernel with arbitrary sigma value is provided by the package:
 
 ```{r}
-kernel <- create_kernel("inverse", sigma=100)
+kernel <- create_kernel("half-normal", sigma=0.08456)
 kernel(seq(0,0.5,by=0.1))
 ```
 
@@ -149,7 +149,7 @@ Now that all of the components are available we can create the model itself. The
 1. A function to find tau for any given prevalence threshold value:
 
 ```{r}
-taufun <- create_si_model(grid, beta_matrix, init, overlap, root="target")
+taufun <- create_si_model(grid, beta_matrix, init, overlap, root="B")
 (tau <- taufun(prevalence=0.5))
 ```
 
@@ -157,7 +157,7 @@ taufun <- create_si_model(grid, beta_matrix, init, overlap, root="target")
 
 ```{r}
 trajfun <- create_si_model(grid, beta_matrix, init, overlap, root="none")
-results <- trajfun(time=seq(0, round(tau$Time[1]*2), by=1))
+results <- trajfun(time=seq(0, round(tau$Time[1]*2), by=10))
 ggplot(results, aes(x=Time, y=Prevalence, col=Area)) + 
   geom_line() + 
   geom_hline(yintercept=0.5, lty="dashed") +
@@ -175,20 +175,19 @@ library("dplyr")
 library("tibble")
 
 landscape <- create_landscape(scale=1.0)
-kernel <- create_kernel("half-normal", sigma=0.08456)
-kernel <- create_kernel("inverse", sigma=100)
+farms <- create_farm_placement(landscape)
+kernel <- create_kernel("exponential", sigma=12.616)
 
-tibble(PatchSize = 10^seq(0,-3,by=-0.01)) %>%
+tibble(PatchArea = 10^seq(0,-3,by=-0.05)) %>%
   rowwise() %>%
   group_split() %>%
   lapply(function(x){
     
-    grid <- create_grid(landscape, cellarea = x$PatchSize, celltype="hexagon", rotate=0)
-    farms <- create_farm_placement(landscape)
+    grid <- create_grid(landscape, patch_area = x$PatchArea, celltype="triangle", rotate=0)
     overlap <- create_farm_overlap(grid, farms)
     init <- create_initial_state(grid, overlap, start_prev=0.5)
     beta_matrix <- create_transmission_matrix(grid, kernel, beta_baseline=0.05)
-    taufun <- create_si_model(grid, beta_matrix, init, overlap, root="target")
+    taufun <- create_si_model(grid, beta_matrix, init, overlap, root="B")
     tau <- taufun(prevalence=0.5)
     
     bind_cols(x, tau)
@@ -196,29 +195,15 @@ tibble(PatchSize = 10^seq(0,-3,by=-0.01)) %>%
   bind_rows() ->
   results
   
-ggplot(results, aes(x=PatchSize, y=Prevalence, col=Area)) +
+
+ggplot(results %>% filter(Area=="Population"), aes(x=PatchArea, y=Time)) +
   geom_line() +
   scale_x_log10_rev()
 
-ggplot(results, aes(x=PatchSize, y=Time, col=Area)) +
+ggplot(results, aes(x=PatchArea, y=Prevalence, col=Area)) +
   geom_line() +
   scale_x_log10_rev()
 
-## Matt TODO
-
-  sigma_inv = 100
-  sigma_exp = 12.6161672832572
-  sigma_half_normal = 0.08456
-
-
 ```
 
-
-
-## Summarising results
-
-```{r}
-## Matt TODO
-
-```
-
+Note that scale_x_log10_rev is used to match the presentation of figures used in the article.

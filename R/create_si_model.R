@@ -9,13 +9,13 @@
 #' @export
 #'
 #' @examples
-create_si_model <- function(grid, beta_matrix, init, overlap, root=c("target","middle","none")) {
+create_si_model <- function(grid, beta_matrix, init, overlap, root=c("B","C","none")) {
 
   root <- match.arg(root)
 
-  source_overlap <- overlap %>% filter(label=="source")
-  target_overlap <- overlap %>% filter(label=="target")
-  middle_overlap <- overlap %>% filter(label=="middle")
+  A_overlap <- overlap %>% filter(label=="Farm A")
+  B_overlap <- overlap %>% filter(label=="Farm B")
+  C_overlap <- overlap %>% filter(label=="Farm C")
 
   y_init <- init %>% select(S, I) %>% as.matrix() %>% as.numeric()
   beta_mat <- beta_matrix
@@ -31,13 +31,16 @@ create_si_model <- function(grid, beta_matrix, init, overlap, root=c("target","m
     N = nrow(grid),
     carry = grid$area,
     area = grid$area,
-    source_overlap = source_overlap %>% select(id_overlap=ID, weight),
-    middle_overlap = middle_overlap %>% select(id_overlap=ID, weight),
-    target_overlap = target_overlap %>% select(id_overlap=ID, weight),
+    source_overlap = A_overlap %>% select(id_overlap=ID, weight),
+    middle_overlap = B_overlap %>% select(id_overlap=ID, weight),
+    ## Note: C is called "target" even though it isn't by default
+    target_overlap = C_overlap %>% select(id_overlap=ID, weight),
     beta_mat = beta_mat
   )
 
-  if(root == "target"){
+  fcta <- function(x) factor(x, levels=c("source","middle","target","population"), labels=c("Farm A","Farm B","Farm C", "Population"))
+
+  if(root == "C"){
     ff <- function(prevalence=0.5, output=c("tibble","deSolve")) {
       stopifnot(is.numeric(prevalence), length(prevalence)==1, is.finite(prevalence), prevalence>0, prevalence<1)
       output <- match.arg(output)
@@ -56,12 +59,12 @@ create_si_model <- function(grid, beta_matrix, init, overlap, root=c("target","m
           rename_with(\(x) gsub("prevalence_","",x)) %>%
           filter(Time > 0) %>%
           pivot_longer("source":"population", names_to="Area", values_to="Prevalence") %>%
-          mutate(Area = factor(Area, levels=c("source","target","middle","population"))) ->
+          mutate(Area = fcta(Area)) ->
           rv
       }
       rv
     }
-  }else if(root == "middle"){
+  }else if(root == "B"){
     ff <- function(prevalence=0.5, output=c("tibble","deSolve")) {
       stopifnot(is.numeric(prevalence), length(prevalence)==1, is.finite(prevalence), prevalence>0, prevalence<1)
       output <- match.arg(output)
@@ -80,7 +83,7 @@ create_si_model <- function(grid, beta_matrix, init, overlap, root=c("target","m
           rename_with(\(x) gsub("prevalence_","",x)) %>%
           filter(Time > 0) %>%
           pivot_longer("source":"population", names_to="Area", values_to="Prevalence") %>%
-          mutate(Area = factor(Area, levels=c("source","target","middle","population"))) ->
+          mutate(Area = fcta(Area)) ->
           rv
       }
       rv
@@ -101,7 +104,7 @@ create_si_model <- function(grid, beta_matrix, init, overlap, root=c("target","m
           select(Time=time, starts_with("prevalence")) %>%
           rename_with(\(x) gsub("prevalence_","",x)) %>%
           pivot_longer("source":"population", names_to="Area", values_to="Prevalence") %>%
-          mutate(Area = factor(Area, levels=c("source","target","middle","population"))) ->
+          mutate(Area = fcta(Area)) ->
           rv
       }
       rv

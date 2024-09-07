@@ -22,7 +22,7 @@
 #'
 #' @examples
 create_grid <- function(landscape,
-                        cellarea = NULL,
+                        patch_area = NULL,
                         n = NULL,
                         middle = FALSE,
                         center_as_centroid = FALSE,
@@ -36,6 +36,7 @@ create_grid <- function(landscape,
   #TODO: introduce center, which means that the center point of the landscape
   # is contained in a cell, and it is that cell's centroid.
 
+  cellarea <- patch_area
   stopifnot(
     "not implemented" = missing(offset),
     "either provide `n` or `cellarea`, not both" =
