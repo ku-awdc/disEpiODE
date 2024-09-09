@@ -7,6 +7,9 @@ library("pbapply")
 
 ## TODO: some triangle size/rotations create an invalid grid - move function to hexscape and make the fancy segmentation of edge triangles optional (and only for rotation==0)
 
+landscape <- create_landscape(scale=1.0)
+farms <- create_farm_placement(landscape)
+
 kernels <- list(
   inverse = create_kernel("inverse", sigma=100),
   exponential = create_kernel("exponential", sigma=12.616),

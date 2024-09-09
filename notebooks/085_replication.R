@@ -4,6 +4,8 @@ library("sf")
 library("pbapply")
 
 # Replicate paper figures 5 and 6
+landscape <- create_landscape(scale=1.0)
+farms <- create_farm_placement(landscape)
 
 kernels <- list(
   inverse = create_kernel("inverse", sigma=100),
