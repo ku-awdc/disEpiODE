@@ -45,4 +45,8 @@ results |>
   ggplot(aes(x=PatchSize, y=Time, col=factor(Rotate))) +
   geom_line() +
   scale_x_log10_rev() +
-  facet_wrap(~GridType, ncol=1)
+  facet_wrap(~GridType, ncol=1) +
+  theme_light()
+
+ggsave("086_rotation_results.pdf", height=8, width=10)
+saveRDS(results, "086_rotation_results.rds")

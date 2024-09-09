@@ -42,7 +42,7 @@ expand_grid(PatchSize = 10^seq(0,-3,by=-0.01), GridType=c("hexagon","square","tr
       beta_matrix <- create_transmission_matrix(grid, kernel, beta_baseline=0.05)
       taufun <- create_si_model(grid, beta_matrix, init, overlap, root="B")
       tau <- taufun(prevalence=0.5)
-      bind_cols(x, tau) %>% mutate(FarmType = f)
+      bind_cols(x, tau) %>% mutate(FarmType = f, Kernel = "half-normal")
     }) %>%
       bind_rows()
 
@@ -55,4 +55,8 @@ results |>
   ggplot(aes(x=PatchSize, y=Time, col=FarmType)) +
   geom_line() +
   scale_x_log10_rev() +
-  facet_wrap(~GridType, ncol=1)
+  facet_wrap(~GridType, ncol=1) +
+  theme_light()
+
+ggsave("087_farmsize_results.pdf", height=8, width=10)
+save(results, all_farms, file="087_farmsize_results.rds")
