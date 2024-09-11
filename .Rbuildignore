@@ -9,3 +9,5 @@
 ^.*\.pdf$
 ^.*\.png$
 ^justfile$
+^tests-old/.*$
+^.vscode$

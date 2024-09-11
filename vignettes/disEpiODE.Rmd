@@ -10,7 +10,8 @@ vignette: >
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>"
+  comment = "#>",
+  fig.width=7
 )
 ```
 
@@ -66,7 +67,8 @@ ggplot(landscape) + geom_sf()
 We should then create the grid - either hexagonal, triangular or square - with given patch area and (optionally) a rotation (in degrees) to be applied to the patches:
 
 ```{r}
-grid <- create_grid(landscape, patch_area = 0.001, grid_type = "hexagon", rotate=0)
+grid <- create_grid(landscape, patch_area = 0.001, 
+  grid_type = "hexagon", rotate=0)
 ggplot() +
   geom_sf(data=landscape) +
   geom_sf(data=grid)
@@ -75,7 +77,8 @@ ggplot() +
 This can be compared to e.g. a simple square grid:
 
 ```{r}
-grid_sq <- create_grid(landscape, patch_area = 0.01, grid_type = "square")
+grid_sq <- create_grid(landscape, patch_area = 0.01, 
+  grid_type = "square")
 ggplot() +
   geom_sf(data=landscape) +
   geom_sf(data=grid_sq)
@@ -84,7 +87,8 @@ ggplot() +
 Or a more complex triangular grid with area of 0.002 and a rotation of 15 degrees:
 
 ```{r}
-grid_tri <- create_grid(landscape, patch_area = 0.002, grid_type = "triangle", rotate=15)
+grid_tri <- create_grid(landscape, patch_area = 0.002, 
+  grid_type = "triangle", rotate=15)
 ggplot() +
   geom_sf(data=landscape) +
   geom_sf(data=grid_tri)
@@ -183,7 +187,8 @@ tibble(PatchArea = 10^seq(0,-3,by=-0.05)) %>%
   group_split() %>%
   lapply(function(x){
     
-    grid <- create_grid(landscape, patch_area = x$PatchArea, grid_type="triangle", rotate=0)
+    grid <- create_grid(landscape, patch_area = x$PatchArea, 
+      grid_type="triangle", rotate=0)
     overlap <- create_farm_overlap(grid, farms)
     init <- create_initial_state(grid, overlap, start_prev=0.5)
     beta_matrix <- create_transmission_matrix(grid, kernel, beta_baseline=0.05)
@@ -207,3 +212,8 @@ ggplot(results, aes(x=PatchArea, y=Prevalence, col=Area)) +
 ```
 
 Note that scale_x_log10_rev is used to match the presentation of figures used in the article.
+
+## Software version
+
+This vignette was created with disEpiODE version `r packageVersion("disEpiODE")` on `r Sys.Date()`.
+

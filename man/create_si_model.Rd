@@ -18,7 +18,3 @@ create_si_model(grid, beta_matrix, init, overlap, root = c("B", "C", "none"))
 \description{
 Deterministic SI model with pair-wise infectious interactions
 }
-\examples{
-this follows the population from 0 until
-tau (time when prevalence(target) = 50\%)
-}

@@ -2,7 +2,7 @@
 % Please edit documentation in R/theme_blank_background.R
 \name{theme_blank_background}
 \alias{theme_blank_background}
-\title{Removes background from \code{\link{ggplot}}-plots.}
+\title{Removes background from ggplots.}
 \usage{
 theme_blank_background(...)
 }
@@ -13,5 +13,5 @@ theme_blank_background(...)
 Theme
 }
 \description{
-Removes background from \code{\link{ggplot}}-plots.
+Removes background from ggplots.
 }

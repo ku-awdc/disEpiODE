@@ -4,8 +4,6 @@
 <!-- badges: start -->
 <!-- badges: end -->
 
-The goal of disEpiODE is to ...
-
 ## Installation
 
 The latest stable version of the package can be installed from our drat repository as follows:

@@ -23,7 +23,7 @@ create_si_model <- function(grid, beta_matrix, init, overlap, root=c("B","C","no
   ode_parameters <- list(
     verbose = FALSE,
     y = y_init,
-    func = disEpiODE:::model_func,
+    func = model_func,
     ynames = FALSE
   )
 
@@ -49,7 +49,7 @@ create_si_model <- function(grid, beta_matrix, init, overlap, root=c("B","C","no
                         !!!ode_parameters,
                         hmax = NULL,
                         parms = parameter_list,
-                        rootfunc = disEpiODE:::find_target_prevalence,
+                        rootfunc = find_target_prevalence,
                         times = c(0,Inf))
       if(output=="tibble"){
         rv %>%
@@ -73,7 +73,7 @@ create_si_model <- function(grid, beta_matrix, init, overlap, root=c("B","C","no
                         !!!ode_parameters,
                         hmax = NULL,
                         parms = parameter_list,
-                        rootfunc = disEpiODE:::find_middle_prevalence,
+                        rootfunc = find_middle_prevalence,
                         times = c(0,Inf))
       if(output=="tibble"){
         rv %>%
@@ -115,125 +115,6 @@ create_si_model <- function(grid, beta_matrix, init, overlap, root=c("B","C","no
 
   return(ff)
 
-
-  current_ode_model <- build_model_function()
-  mm <- current_ode_model(c(0,100000))
-
-  class(mm)
-
-  {
-    tau_model_output <-
-      rlang::exec(deSolve::ode,
-                  !!!ode_parameters,
-                  hmax = NULL, #na_as_null(hmax_list[[beta_mat_name]]),
-                  parms = parameter_list %>% append(list(
-                    beta_mat = beta_mat
-                  )),
-                  # rootfunc = disEpiODE:::find_target_prevalence,
-                  rootfunc = disEpiODE:::find_middle_prevalence,
-                  times = c(0, Inf)
-      )
-
-    output <- list()
-    output$rstate <- deSolve::diagnostics(tau_model_output)$rstate
-    # TODO: check if tau exists
-    output$tau <- tau_model_output[2, 1]
-
-    # save a model you can run with a given end time T
-    build_model_function <- function(ode_parameters, hmax, parameter_list, beta_mat) {
-      function(times) {
-        rlang::exec(deSolve::ode,
-                    !!!ode_parameters,
-                    hmax = na_as_null(hmax),
-                    parms = parameter_list %>% append(list(
-                      beta_mat = beta_mat
-                    )),
-                    # rootfunc = disEpiODE:::find_target_prevalence,
-                    # rootfunc = disEpiODE:::find_middle_prevalence,
-                    times = times
-        )
-      }
-    }
-    current_ode_model <- build_model_function(ode_parameters, hmax_list[[beta_mat_name]], parameter_list, beta_mat)
-    # TODO: Maybe store list(run_model = current_ode_model)
-    # if so, then the storage of this should mimic the other ways outlined here
-    result[[glue("output_ode_model_{beta_mat_name}")]] <- list(run_model = current_ode_model)
-    # result[[glue("output_ode_model")]][[beta_mat_name]] <- current_ode_model
-
-    # TODO: consider adding the time column to this..
-    # if you do so, the sanity check below needs adjustment
-    prevalence_at_tau <-
-      tau_model_output[
-        # choose time = min?(tau, Inf)
-        2,
-        # first col is time, jump over Ss and Is,
-        # prevalences: source, middle, target, population
-        (1 + 1 + 2 * length(st_geometry(grid))):ncol(tau_model_output),
-        drop = FALSE
-      ]
-
-    # sanity checks: ensure the colnames of prevalence_at_tau
-    # all contains "prevalence_"
-    stopifnot(
-      "all columns must contain the `prevalence_` prefix" =
-        all(str_detect(names(prevalence_at_tau), pattern = "prevalence_"))
-    )
-
-    result[[glue("output_{beta_mat_name}_prevalence")]] <-
-      list(prevalence_at_tau)
-  }
-
-
-
-  ## OLDER CODE BELOW HERE
-
-  stopifnot(
-    all(c("id", "geometry", "carry", "area") %in% names(grid)),
-    all(dim(beta_mat) == c(length(grid$geometry), length(grid$geometry))),
-    length(y_init) == 2 * length(grid$geometry),
-    all(c("id_overlap", "weight") %in% names(target_overlap)),
-    all(c("id_overlap", "weight") %in% names(middle_overlap))
-  )
-  n_grid <- nrow(grid)
-  parameter_list <- list(
-    beta_mat = beta_mat,
-    N = n_grid,
-    carry = grid$carry,
-    area = grid$area,
-    target_overlap = target_overlap,
-    middle_overlap = middle_overlap
-  )
-
-  # common parameters
-  ode_parameters <- list(
-    verbose = verbose,
-    y = y_init,
-    parms = parameter_list,
-    func = model_func,
-    ynames = FALSE
-  )
-  tau_model_output <-
-    rlang::exec(deSolve::ode,
-                !!!ode_parameters,
-                rootfunc = find_target_prevalence,
-                hmax = hmax,
-                times = c(0, Inf))
-  #TODO: check if tau exists
-  tau <- tau_model_output[2, 1]
-
-  #' this follows the population from 0 until
-  #' tau (time when prevalence(target) = 50%)
-  model_output <-
-    rlang::exec(deSolve::ode, !!!ode_parameters,
-                # Matt: 2*tau instead for a window
-                times = seq.default(0, tau, length.out = 250),
-                rootfunc = terminate_extinction)
-
-  list(
-    tau_model_output = tau_model_output,
-    model_output = model_output,
-    n_grid = n_grid
-  )
 }
 
 

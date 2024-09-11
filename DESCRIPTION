@@ -1,7 +1,7 @@
 Package: disEpiODE
 Title: a deterministic SI model for theoretical landscape discretisation
-Date: 2024-09-04
-Version: 0.1.0-1
+Date: 2024-09-11
+Version: 0.1.0-2
 Authors@R: 
     c(
       person("Mossa", "Reimert", , "mossa@sund.ku.dk", role = c("aut", "cre")),
@@ -20,18 +20,19 @@ Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 Imports: 
+    methods,
+    stats,
     magrittr,
     tibble,
     dplyr,
     tidyr,
     sf,
     deSolve,
-    purrr,
     rlang,
-    scales
+    ggplot2,
+    fs
 Suggests: 
     knitr,
-    ggplot2,
     rmarkdown,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3

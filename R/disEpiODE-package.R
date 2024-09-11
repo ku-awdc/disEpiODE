@@ -17,4 +17,6 @@ NULL
 #' @import tibble
 #' @import dplyr
 #' @import tidyr
+#' @importFrom methods formalArgs
+#' @importFrom stats dnorm time
 NULL

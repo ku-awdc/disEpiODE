@@ -15,12 +15,3 @@ create_buffer_overlap_map(buffer_overlap)
 \description{
 Title
 }
-\examples{
-source -> lower left
-middle -> center of landscape
-target -> upper right
-
-terminate when middle achieves 50\% prevalence
-remove mass from susceptible
-Define source- and target-buffer indices and weights
-}

@@ -1,4 +1,4 @@
-#' Removes background from [`ggplot`]-plots.
+#' Removes background from ggplots.
 #'
 #' @param ...Does nothing
 #'

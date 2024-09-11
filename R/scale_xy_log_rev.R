@@ -7,6 +7,7 @@
 #'
 #' @examples
 #'
+#' @import ggplot2
 #' @aliases scale_y_rev_log
 #' @rdname scale_xy_log_rev
 scale_x_log_rev <- function(...) {
