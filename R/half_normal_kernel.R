@@ -27,7 +27,6 @@ half_normal_sd <- function(mean) {
 #'
 #' @return
 #'
-#' @export
 #'
 #' @examples
 half_normal_kernel <- function(x, mean = 1, location = 0) {
@@ -44,9 +43,26 @@ half_normal_kernel <- function(x, mean = 1, location = 0) {
 #' @param magn Magnitude
 #'
 #' @return
-#' @export
 #'
 #' @examples
 half_normal_param_kernel <- function(x, mean, location, magn) {
   magn * half_normal_kernel(x, mean = mean, location = location)
+}
+
+
+#' 
+#' 
+#' @export
+inv_sigma <- function(distance, sigma = 1) {
+  1 / (sigma * distance + 1)
+}
+
+#' @export
+exp_sigma <- function(distance, sigma = 1) {
+  exp(-sigma*distance)
+}
+
+#' @export
+half_normal_sigma <- function(distance, sigma = 1) {
+  exp(-distance**2 / (2 * sigma**2))
 }
